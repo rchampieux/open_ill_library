@@ -1,41 +1,12 @@
-#'---
-#'title: "Pull Data"
-#'author: "Jessica Minnier"
-#'date: '`r Sys.Date()`'
-#'output: github_document
-#'---
-  
-#+ r setup, include=FALSE
-library(tidyverse)
-library(readxl)
-library(skimr)
-library(janitor)
-library(here)
+Pull Data
+================
+Jessica Minnier
+2018-06-18
 
-#info from http://tophcito.blogspot.com/2015/11/accessing-apis-from-r-and-little-r.html
-library(httr)
-library(jsonlite)
+Read Data
+=========
 
-knitr::opts_chunk$set(
-  eval       = TRUE,    # whether to run code in code chunk
-  include    = TRUE,    # whether to include the chunk output
-  echo       = TRUE,   # Whether to show code chunk in final output
-  error      = TRUE,    # whether to display error messages
-  message    = FALSE,   # whether to preserve messages
-  warning    = FALSE,   # whether to preserve warnings
-  comment    = "#>",    # a character string to append at start
-  # of each line of results in final document
-  tidy       = FALSE,   # whether to tidy code chunks for display
-  dpi        = 96, 
-  fig.width  = 6,       # consistent width for figures
-  fig.asp    = 0.618,   # the golden ratio, can be adjusted in individual chunks
-  out.width  = "100%",   # controls the output size
-  fig.align  = "center" # give plot room to breathe
-)
-
-
-#' # Read Data
-
+``` r
 tmpborrow <- read_excel(
   here("Pacific","Pacific-Borrowing articles 2016 2017 filled and cancelled.xlsx"),
   sheet = "Pacific_Borrowing_Sample")%>%janitor::clean_names()
@@ -84,60 +55,134 @@ alldata = alldata%>%mutate(
   doi_input = doi, # UP added non-dois to doi column, so removing these from query to save time
   doi=ifelse(substr(doi,1,1)=="1",doi,NA)
 )
+```
 
-#' Number of unique DOIs:
+Number of unique DOIs:
+
+``` r
 length(unique(alldata$doi))
+```
 
+    #> [1] 1232
+
+``` r
 alldata%>%tabyl(institution)%>%adorn_pct_formatting()
+```
+
+    #>  institution   n percent
+    #>      pacific 542   34.2%
+    #>          PSU 533   33.7%
+    #>           UP 508   32.1%
+
+``` r
 alldata%>%tabyl(institution,type)
+```
 
-#' # Unpaywall
+    #>  institution borrow lending
+    #>      pacific    262     280
+    #>          PSU    278     255
+    #>           UP    270     238
 
-#' API: http://unpaywall.org/api/v2
+Unpaywall
+=========
 
+API: <http://unpaywall.org/api/v2>
+
+``` r
 url  <- "https://api.unpaywall.org/"
 path <- "/v2/"
 email <- "minnier@ohsu.edu"
+```
 
-#' get the result in JSON
+get the result in JSON
+
+``` r
 raw.result <- GET(url = url, path = path)
 raw.result
+```
+
+    #> Response [https://api.unpaywall.org/v2/]
+    #>   Date: 2018-06-19 04:56
+    #>   Status: 200
+    #>   Content-Type: application/json
+    #>   Size: 103 B
+    #> {
+    #>   "documentation_url": "https://unpaywall.org/api/v2",
+    #>   "msg": "Don't panic",
+    #>   "version": "2.0.1"
+
+``` r
 names(raw.result)
+```
 
+    #>  [1] "url"         "status_code" "headers"     "all_headers" "cookies"    
+    #>  [6] "content"     "date"        "times"       "request"     "handle"
 
-#' Make a function that creates an appended path
+Make a function that creates an appended path
+
+``` r
 makePath <- function(classifier) {
   classifier = paste0("/v2/",classifier,"?email=",email)
   return(classifier)
 }
+```
 
-#' make a query out of a list of articles
+make a query out of a list of articles
 
+``` r
 # make stacked data frame of all queried data sets
 # add column query_used to choose doi or some other identifier
 query_dois  <- unique(na.omit(alldata$doi))
 query_paths <- lapply(as.list(query_dois), makePath)
+```
 
-#' Some testing, one article first
-#' Note this is different than OA button since it is not of the form ?url=, and also we need /v2/ which has
-#' to be input into path not url (or else it goes away for some reason).
+Some testing, one article first Note this is different than OA button since it is not of the form ?url=, and also we need /v2/ which has to be input into path not url (or else it goes away for some reason).
 
+``` r
 # should be
 # https://api.unpaywall.org/v2/10.1371/journal.pone.0163591?email=minnier@ohsu.edu
 # raw.result.test = GET(url = url, path = path, query = list(url=unlist(queryart$articles[2])))
 raw.result = GET(url = url, path = query_paths[[2]])
 names(raw.result)
+```
+
+    #>  [1] "url"         "status_code" "headers"     "all_headers" "cookies"    
+    #>  [6] "content"     "date"        "times"       "request"     "handle"
+
+``` r
 this.raw.content <- rawToChar(raw.result$content)
 this.content <- fromJSON(this.raw.content)
 names(this.content)
-this.content$best_oa_location$url
+```
 
+    #>  [1] "best_oa_location"   "data_standard"      "doi"               
+    #>  [4] "doi_url"            "genre"              "is_oa"             
+    #>  [7] "journal_is_in_doaj" "journal_is_oa"      "journal_issns"     
+    #> [10] "journal_name"       "oa_locations"       "published_date"    
+    #> [13] "publisher"          "title"              "updated"           
+    #> [16] "year"               "z_authors"
+
+``` r
+this.content$best_oa_location$url
+```
+
+    #> NULL
+
+``` r
 # test map
 all_content = list(this.content,this.content)
 # note, map_df + extract doesn't work if there is an error since these fields are not present, need to adapt this in the extract function
 purrr::map_df(all_content,magrittr::extract,
               c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
+```
 
+    #> # A tibble: 2 x 5
+    #>   doi               is_oa journal_is_in_doaj data_standard title          
+    #>   <chr>             <lgl> <lgl>                      <int> <chr>          
+    #> 1 10.1159/000308973 FALSE FALSE                          2 The Effect of …
+    #> 2 10.1159/000308973 FALSE FALSE                          2 The Effect of …
+
+``` r
 # function to extract OA availability, main contect, after fromJSON
 extract_unpaywall_data = function(rawcontent) {
   rawcontent = jsonlite:::null_to_na(rawcontent)
@@ -169,24 +214,49 @@ extract_unpaywall_data = function(rawcontent) {
   bind_cols(main_data,oa_avail)%>%add_column(error=error,message=message)
 }
 extract_unpaywall_data(fromJSON(rawToChar(raw.result$content)))
+```
+
+    #> # A tibble: 1 x 8
+    #>   doi    is_oa journal_is_in_d… data_standard title    url   error message
+    #>   <chr>  <lgl> <lgl>                    <int> <chr>    <lgl> <lgl> <lgl>  
+    #> 1 10.11… FALSE FALSE                        2 The Eff… NA    FALSE NA
+
+``` r
 #extract_unpaywall_data(fromJSON(rawToChar(GET(url = url, path = "/v2/test")))) # should be NAs
 
 tmp = GET(url = url, path = "/v2/10.1615/CritRevPhysRehabilMed.2015012338?email=minnier@ohsu.edu")
 extract_unpaywall_data(fromJSON(rawToChar(tmp$content)))
+```
+
+    #> # A tibble: 1 x 8
+    #>   doi    is_oa journal_is_in_d… data_standard title    url   error message
+    #>   <chr>  <lgl> <lgl>                    <int> <chr>    <lgl> <lgl> <lgl>  
+    #> 1 10.16… FALSE FALSE                        2 Short-T… NA    FALSE NA
+
+``` r
 # should get an error message
 tmp = GET(url = url, path = "/v2/10.1615/CritRevPhysRehabilMed.201301029?email=minnier@ohsu.edu")
 extract_unpaywall_data(fromJSON(rawToChar(tmp$content)))
+```
 
+    #> # A tibble: 1 x 8
+    #>   doi   is_oa journal_is_in_doaj data_standard title url   error message  
+    #>   <lgl> <lgl> <lgl>              <lgl>         <lgl> <lgl> <lgl> <chr>    
+    #> 1 NA    NA    NA                 NA            NA    NA    TRUE  '10.1615…
 
-#' Now try all queries
-#' 
+Now try all queries
 
+``` r
 unpaywall_raw <- vector(mode   = "list",
                         length = length(query_paths))
 length(unpaywall_raw)
+```
 
-#' make sure 1 request per second
+    #> [1] 1231
 
+make sure 1 request per second
+
+``` r
 safe_fromJSON = safely(fromJSON)
 
 tryload = try(load(here("results","unpaywall_raw.RData")))
@@ -219,20 +289,41 @@ main_res     <- unpaywall_raw%>%map_df(extract_unpaywall_data,.id="query")
 #                           c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
 # main_res  <- main_res%>%purrr::discard(is.null)
 res       <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywall=doi),by="query")
+```
 
-#' write to a file:
+write to a file:
 
+``` r
 write_csv(res,
           path=here::here("results",paste0(lubridate::today(),"_unpaywall.csv")))
 
 
 res%>%tabyl(type,error)%>%adorn_title()
+```
 
+    #>          error         
+    #>     type FALSE TRUE NA_
+    #>   borrow   579    9 222
+    #>  lending   640   11 122
+
+``` r
 res%>%tabyl(is_oa)%>%adorn_title()%>%adorn_percentages()
+```
 
+    #>                                              NA
+    #>  is_oa    n           percent     valid_percent
+    #>  FALSE 1009 0.637397346809855 0.827727645611157
+    #>   TRUE  210 0.132659507264687 0.172272354388843
+    #>   <NA>  364 0.229943145925458              <NA>
+
+``` r
 res %>% ggplot(aes(x=institution,fill=is_oa)) + geom_bar(position = "dodge")
+```
 
+<img src="01-pull_data_files/figure-markdown_github/unnamed-chunk-10-1.png" width="100%" style="display: block; margin: auto;" />
+
+``` r
 # is_oa is null when either the doi was missing so could  not submit to unpaywall, or if there was an error (invalid doi usually)
 
 # add flag for why is_oa is missing: missing doi in input vs invalid doi
-
+```
