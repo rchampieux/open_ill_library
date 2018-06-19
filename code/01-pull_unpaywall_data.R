@@ -1,5 +1,5 @@
 #'---
-#'title: "Pull Data"
+#'title: "Pull Unpaywall Data"
 #'author: "Jessica Minnier"
 #'date: '`r Sys.Date()`'
 #'output: github_document
@@ -15,6 +15,12 @@ library(here)
 #info from http://tophcito.blogspot.com/2015/11/accessing-apis-from-r-and-little-r.html
 library(httr)
 library(jsonlite)
+
+date_updated <- "2018-06-18"
+unpaywall_datafile <- paste0(date_updated,"-unpaywall_raw.RData")
+unpaywall_results_file <- paste0(date_updated,"-unpaywall_results.csv")
+#unpaywall_results_file <- paste0(lubridate::today(),"_unpaywall.csv")
+update_raw_data <- FALSE
 
 knitr::opts_chunk$set(
   eval       = TRUE,    # whether to run code in code chunk
@@ -189,8 +195,8 @@ length(unpaywall_raw)
 
 safe_fromJSON = safely(fromJSON)
 
-tryload = try(load(here("results","unpaywall_raw.RData")))
-if(class(tryload)=="try-error"){
+tryload = try(load(here("results",unpaywall_datafile)))
+if((class(tryload)=="try-error")||(update_raw_data)){
   t0 <- Sys.time()
   for (i in 1:length(unpaywall_raw)) {
     this.path        <- query_paths[[i]]
@@ -210,8 +216,9 @@ if(class(tryload)=="try-error"){
   unpaywall_raw%>%map_int(length)%>%table() 
   unpaywall_error%>%map_int(length)%>%table() 
   
-  save(unpaywall_raw,unpaywall_error,file=here("results","unpaywall_raw.RData"))
+  save(unpaywall_raw,unpaywall_error,file=here("results",unpaywall_datafile))
 }
+
 
 #jsonlite:::null_to_na(unpaywall_raw)[[2]]
 main_res     <- unpaywall_raw%>%map_df(extract_unpaywall_data,.id="query")
@@ -223,12 +230,12 @@ res       <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywa
 #' write to a file:
 
 write_csv(res,
-          path=here::here("results",paste0(lubridate::today(),"_unpaywall.csv")))
+          path=here::here("results",unpaywall_results_file))
 
 
 res%>%tabyl(type,error)%>%adorn_title()
 
-res%>%tabyl(is_oa)%>%adorn_title()%>%adorn_percentages()
+res%>%tabyl(is_oa)%>%adorn_percentages()
 
 res %>% ggplot(aes(x=institution,fill=is_oa)) + geom_bar(position = "dodge")
 

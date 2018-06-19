@@ -1,7 +1,7 @@
-Pull Data
+Pull Unpaywall Data
 ================
 Jessica Minnier
-2018-06-18
+2018-06-19
 
 Read Data
 =========
@@ -102,7 +102,7 @@ raw.result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-06-19 04:56
+    #>   Date: 2018-06-19 17:55
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
@@ -259,8 +259,8 @@ make sure 1 request per second
 ``` r
 safe_fromJSON = safely(fromJSON)
 
-tryload = try(load(here("results","unpaywall_raw.RData")))
-if(class(tryload)=="try-error"){
+tryload = try(load(here("results",unpaywall_datafile)))
+if((class(tryload)=="try-error")||(update_raw_data)){
   t0 <- Sys.time()
   for (i in 1:length(unpaywall_raw)) {
     this.path        <- query_paths[[i]]
@@ -280,8 +280,9 @@ if(class(tryload)=="try-error"){
   unpaywall_raw%>%map_int(length)%>%table() 
   unpaywall_error%>%map_int(length)%>%table() 
   
-  save(unpaywall_raw,unpaywall_error,file=here("results","unpaywall_raw.RData"))
+  save(unpaywall_raw,unpaywall_error,file=here("results",unpaywall_datafile))
 }
+
 
 #jsonlite:::null_to_na(unpaywall_raw)[[2]]
 main_res     <- unpaywall_raw%>%map_df(extract_unpaywall_data,.id="query")
@@ -295,7 +296,7 @@ write to a file:
 
 ``` r
 write_csv(res,
-          path=here::here("results",paste0(lubridate::today(),"_unpaywall.csv")))
+          path=here::here("results",unpaywall_results_file))
 
 
 res%>%tabyl(type,error)%>%adorn_title()
@@ -307,20 +308,19 @@ res%>%tabyl(type,error)%>%adorn_title()
     #>  lending   640   11 122
 
 ``` r
-res%>%tabyl(is_oa)%>%adorn_title()%>%adorn_percentages()
+res%>%tabyl(is_oa)%>%adorn_percentages()
 ```
 
-    #>                                              NA
-    #>  is_oa    n           percent     valid_percent
-    #>  FALSE 1009 0.637397346809855 0.827727645611157
-    #>   TRUE  210 0.132659507264687 0.172272354388843
-    #>   <NA>  364 0.229943145925458              <NA>
+    #>  is_oa         n      percent valid_percent
+    #>  FALSE 0.9985500 0.0006307960  0.0008191551
+    #>   TRUE 0.9985500 0.0006307960  0.0008191551
+    #>     NA 0.9993687 0.0006313131            NA
 
 ``` r
 res %>% ggplot(aes(x=institution,fill=is_oa)) + geom_bar(position = "dodge")
 ```
 
-<img src="01-pull_data_files/figure-markdown_github/unnamed-chunk-10-1.png" width="100%" style="display: block; margin: auto;" />
+<img src="01-pull_unpaywall_data_files/figure-markdown_github/unnamed-chunk-10-1.png" width="100%" style="display: block; margin: auto;" />
 
 ``` r
 # is_oa is null when either the doi was missing so could  not submit to unpaywall, or if there was an error (invalid doi usually)
