@@ -44,5 +44,6 @@ alldata = alldata%>%mutate(
   doi=gsub("doi:","",doi), #one had doi: in front
   doi=gsub("Get rights and content","",doi),
   doi_input = doi, # UP added non-dois to doi column, so removing these from query to save time
-  doi=ifelse(substr(doi,1,1)=="1",doi,NA)
+  doi=ifelse(substr(doi,1,1)=="1",doi,NA),
+  doi_present =ifelse(is.na(doi),0,1)
 )

@@ -15,6 +15,7 @@ library(here)
 #info from http://tophcito.blogspot.com/2015/11/accessing-apis-from-r-and-little-r.html
 library(httr)
 library(jsonlite)
+library(printr)
 
 date_updated <- "2018-06-18"
 unpaywall_datafile <- paste0(date_updated,"-unpaywall_raw.RData")
@@ -45,9 +46,10 @@ knitr::opts_chunk$set(
 source(here("code","00-clean_input_data.R"))
 
 #' Number of samples per institution:
-#' alldata%>%tabyl(institution)%>%adorn_pct_formatting()
-alldata%>%tabyl(institution,type)
-alldata%>%tabyl(institution,type)
+alldata%>%tabyl(institution)%>%adorn_pct_formatting()%>%adorn_totals()
+
+alldata%>%tabyl(institution,type)%>%adorn_totals()
+
 
 #' Number of unique DOIs:
 #' 
@@ -60,7 +62,7 @@ tmp[tmp>1]
 
 
 
-#' # Unpaywall
+#' # Unpaywall API
 
 #' API: http://unpaywall.org/api/v2
 
@@ -69,45 +71,41 @@ path <- "/v2/"
 email <- "minnier@ohsu.edu"
 
 #' get the result in JSON
-raw.result <- GET(url = url, path = path)
-raw.result
-names(raw.result)
+raw_result <- GET(url = url, path = path)
+raw_result
+names(raw_result)
 
 
 #' Make a function that creates an appended path
-makePath <- function(classifier) {
+make_path <- function(classifier) {
   classifier = paste0("/v2/",classifier,"?email=",email)
   return(classifier)
 }
 
 #' make a query out of a list of articles
 
-# make stacked data frame of all queried data sets
-# add column query_used to choose doi or some other identifier
 query_dois  <- unique(na.omit(alldata$doi))
-query_paths <- lapply(as.list(query_dois), makePath)
+query_paths <- lapply(as.list(query_dois), make_path)
 
-#' Some testing, one article first
+#' ## Some testing, one article first
+#' 
 #' Note this is different than OA button since it is not of the form ?url=, and also we need /v2/ which has
 #' to be input into path not url (or else it goes away for some reason).
 
 # should be
 # https://api.unpaywall.org/v2/10.1371/journal.pone.0163591?email=minnier@ohsu.edu
 # raw.result.test = GET(url = url, path = path, query = list(url=unlist(queryart$articles[2])))
-raw.result = GET(url = url, path = query_paths[[2]])
-names(raw.result)
-this.raw.content <- rawToChar(raw.result$content)
-this.content <- fromJSON(this.raw.content)
-names(this.content)
-this.content$best_oa_location$url
+raw_result = GET(url = url, path = query_paths[[2]])
+names(raw_result)
+this_raw_content <- rawToChar(raw_result$content)
+this_content <- fromJSON(this_raw_content)
+names(this_content)
+this_content$best_oa_location$url
 
-# test map
-all_content = list(this.content,this.content)
-# note, map_df + extract doesn't work if there is an error since these fields are not present, need to adapt this in the extract function
-purrr::map_df(all_content,magrittr::extract,
-              c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
-
-# function to extract OA availability, main contect, after fromJSON
+#' # Function: extract_unpaywall_data()
+#' 
+#' Function to extract OA availability, main contect, after fromJSON:
+#' 
 extract_unpaywall_data = function(rawcontent) {
   rawcontent = jsonlite:::null_to_na(rawcontent)
   main_names = c("doi","is_oa","journal_is_in_doaj","data_standard","title")
@@ -137,7 +135,7 @@ extract_unpaywall_data = function(rawcontent) {
   }
   bind_cols(main_data,oa_avail)%>%add_column(error=error,message=message)
 }
-extract_unpaywall_data(fromJSON(rawToChar(raw.result$content)))
+extract_unpaywall_data(fromJSON(rawToChar(raw_result$content)))
 #extract_unpaywall_data(fromJSON(rawToChar(GET(url = url, path = "/v2/test")))) # should be NAs
 
 tmp = GET(url = url, path = "/v2/10.1615/CritRevPhysRehabilMed.2015012338?email=minnier@ohsu.edu")
@@ -147,6 +145,8 @@ tmp = GET(url = url, path = "/v2/10.1615/CritRevPhysRehabilMed.201301029?email=m
 extract_unpaywall_data(fromJSON(rawToChar(tmp$content)))
 
 
+#' # Run extract function on set of unique DOIs in sample
+#' 
 #' Now try all queries
 #' 
 
@@ -185,24 +185,47 @@ if((class(tryload)=="try-error")||(update_raw_data)){
 
 #jsonlite:::null_to_na(unpaywall_raw)[[2]]
 main_res     <- unpaywall_raw%>%map_df(extract_unpaywall_data,.id="query")
+main_res     <- main_res%>%mutate(
+  oa_result = case_when(
+    error ~ "doi_input_error",
+    is_oa ~ "oa_found",
+    !is_oa ~ "oa_not_found")
+)
+
+#' ## Combine results with original data
+#' 
+#' Merge with original data, some had missing or duplicate dois
+                                  
 # main_res  <- purrr::map(unpaywall_raw,magrittr::extract,
 #                           c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
 # main_res  <- main_res%>%purrr::discard(is.null)
-res       <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywall=doi),by="query")
+res <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywall=doi),by="query")
 
-#' write to a file:
+res$oa_result[is.na(res$oa_result)] = "no_doi_input"
+
+#' ## Write to a file:
 
 write_csv(res,
           path=here::here("results",unpaywall_results_file))
 
+#' # Unpaywall OA results:
+#' 
+res%>%tabyl(oa_result)
+res%>%tabyl(oa_result,institution)%>%adorn_title()
+res%>%tabyl(oa_result,type)%>%adorn_title()
 
-res%>%tabyl(type,error)%>%adorn_title()
+res %>% ggplot(aes(x=institution,fill=oa_result)) + geom_bar(position = "dodge") + 
+  theme_minimal()
 
-res%>%tabyl(is_oa)%>%adorn_percentages()
+#' ## OA results: evidence
+#' 
+res%>%filter(is_oa==1)%>%tabyl(evidence)%>%adorn_pct_formatting()
 
-res %>% ggplot(aes(x=institution,fill=is_oa)) + geom_bar(position = "dodge")
 
-# is_oa is null when either the doi was missing so could  not submit to unpaywall, or if there was an error (invalid doi usually)
+#' ## Which dois result in an error?
+#' 
+res%>%filter(error)%>%select(institution,type,query,error,message)%>%kable
 
-# add flag for why is_oa is missing: missing doi in input vs invalid doi
+
+
 

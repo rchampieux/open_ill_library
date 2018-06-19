@@ -7,55 +7,32 @@ Read Data
 =========
 
 ``` r
-tmpborrow <- read_excel(
-  here("Pacific","Pacific-Borrowing articles 2016 2017 filled and cancelled.xlsx"),
-  sheet = "Pacific_Borrowing_Sample")%>%janitor::clean_names()
-
-tmplending <- read_excel(
-  here("Pacific","Pacific-Lending Articles 2016 2017 Filled and Cancelled or Conditionaled.xlsx"),
-  sheet = "Pacific_Lending_Sample")%>%janitor::clean_names()
-
-pacific = bind_rows("borrow"=tmpborrow,"lending"=tmplending,.id = "type")%>%
-  add_column(institution="pacific",.before = "type")
-
-tmpborrow <- read_excel(
-  here("PSU","PSU 2017articlesborrowing.xlsx"),
-  sheet = "PSU_Borrowing_Sample",
-  na = c("","N/A"))%>%janitor::clean_names()
-
-tmplending <- read_excel(
-  here("PSU","Copy of PSU 2017articleslending.xlsx"),
-  sheet = "PSU_Lending_Sample",
-  na = c("","N/A"))%>%janitor::clean_names()
-
-psu = bind_rows("borrow"=tmpborrow,"lending"=tmplending,.id = "type")%>%
-  add_column(institution="PSU",.before = "type")
-
-
-tmpborrow <- read_excel(
-  here("UofP","UP16-17_borrowing_articles.xlsx"),
-  sheet = "UP_Borrowing_Sample",
-  na = c("","N/A"))%>%janitor::clean_names()
-
-tmplending <- read_excel(
-  here("UofP","UP16_17_lending_articles.xlsx"),
-  sheet = "UP_Lending_Sample",
-  na = c("","N/A"))%>%janitor::clean_names()
-
-uofp = bind_rows("borrow"=tmpborrow,"lending"=tmplending,.id = "type")%>%
-  add_column(institution="UP",.before = "type") 
-
-alldata = bind_rows(pacific,psu)
-alldata = bind_rows(alldata,uofp)
-alldata = alldata%>%mutate(
-  doi=ifelse(substr(doi,1,1)=="0",paste0("1",doi),doi), # some dois start with 0, assuming need a 10 instead
-  doi=gsub("\n","",doi), #\n at end of doi causes issues
-  doi=gsub("doi:","",doi), #one had doi: in front
-  doi=gsub("Get rights and content","",doi),
-  doi_input = doi, # UP added non-dois to doi column, so removing these from query to save time
-  doi=ifelse(substr(doi,1,1)=="1",doi,NA)
-)
+source(here("code","00-clean_input_data.R"))
 ```
+
+Number of samples per institution:
+
+``` r
+alldata%>%tabyl(institution)%>%adorn_pct_formatting()%>%adorn_totals()
+```
+
+| institution |     n| percent |
+|:------------|-----:|:--------|
+| pacific     |   542| 34.2%   |
+| PSU         |   533| 33.7%   |
+| UP          |   508| 32.1%   |
+| Total       |  1583| -       |
+
+``` r
+alldata%>%tabyl(institution,type)%>%adorn_totals()
+```
+
+| institution |  borrow|  lending|
+|:------------|-------:|--------:|
+| pacific     |     262|      280|
+| PSU         |     278|      255|
+| UP          |     270|      238|
+| Total       |     810|      773|
 
 Number of unique DOIs:
 
@@ -65,26 +42,19 @@ length(unique(alldata$doi))
 
     #> [1] 1232
 
-``` r
-alldata%>%tabyl(institution)%>%adorn_pct_formatting()
-```
-
-    #>  institution   n percent
-    #>      pacific 542   34.2%
-    #>          PSU 533   33.7%
-    #>           UP 508   32.1%
+A few DOIs show up twice:
 
 ``` r
-alldata%>%tabyl(institution,type)
+tmp = sort(table(alldata$doi),decreasing = TRUE)
+tmp[tmp>1]
 ```
 
-    #>  institution borrow lending
-    #>      pacific    262     280
-    #>          PSU    278     255
-    #>           UP    270     238
+|  10.1016/0045-7930(86)90013-7|  10.1016/0091-3057(84)90199-0|  10.1016/S0304-3878(02)00131-1|  10.1080/00141844.2015.1028564|  10.1080/02687030902732745|  10.1097/HRP.0000000000000100|  10.1177/1747954116655049|  10.3109/01612840.2015.1055020|
+|-----------------------------:|-----------------------------:|------------------------------:|------------------------------:|--------------------------:|-----------------------------:|-------------------------:|------------------------------:|
+|                             2|                             2|                              2|                              2|                          2|                             2|                         2|                              2|
 
-Unpaywall
-=========
+Unpaywall API
+=============
 
 API: <http://unpaywall.org/api/v2>
 
@@ -97,12 +67,12 @@ email <- "minnier@ohsu.edu"
 get the result in JSON
 
 ``` r
-raw.result <- GET(url = url, path = path)
-raw.result
+raw_result <- GET(url = url, path = path)
+raw_result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-06-19 17:55
+    #>   Date: 2018-06-19 20:27
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
@@ -112,7 +82,7 @@ raw.result
     #>   "version": "2.0.1"
 
 ``` r
-names(raw.result)
+names(raw_result)
 ```
 
     #>  [1] "url"         "status_code" "headers"     "all_headers" "cookies"    
@@ -121,7 +91,7 @@ names(raw.result)
 Make a function that creates an appended path
 
 ``` r
-makePath <- function(classifier) {
+make_path <- function(classifier) {
   classifier = paste0("/v2/",classifier,"?email=",email)
   return(classifier)
 }
@@ -130,29 +100,30 @@ makePath <- function(classifier) {
 make a query out of a list of articles
 
 ``` r
-# make stacked data frame of all queried data sets
-# add column query_used to choose doi or some other identifier
 query_dois  <- unique(na.omit(alldata$doi))
-query_paths <- lapply(as.list(query_dois), makePath)
+query_paths <- lapply(as.list(query_dois), make_path)
 ```
 
-Some testing, one article first Note this is different than OA button since it is not of the form ?url=, and also we need /v2/ which has to be input into path not url (or else it goes away for some reason).
+Some testing, one article first
+-------------------------------
+
+Note this is different than OA button since it is not of the form ?url=, and also we need /v2/ which has to be input into path not url (or else it goes away for some reason).
 
 ``` r
 # should be
 # https://api.unpaywall.org/v2/10.1371/journal.pone.0163591?email=minnier@ohsu.edu
 # raw.result.test = GET(url = url, path = path, query = list(url=unlist(queryart$articles[2])))
-raw.result = GET(url = url, path = query_paths[[2]])
-names(raw.result)
+raw_result = GET(url = url, path = query_paths[[2]])
+names(raw_result)
 ```
 
     #>  [1] "url"         "status_code" "headers"     "all_headers" "cookies"    
     #>  [6] "content"     "date"        "times"       "request"     "handle"
 
 ``` r
-this.raw.content <- rawToChar(raw.result$content)
-this.content <- fromJSON(this.raw.content)
-names(this.content)
+this_raw_content <- rawToChar(raw_result$content)
+this_content <- fromJSON(this_raw_content)
+names(this_content)
 ```
 
     #>  [1] "best_oa_location"   "data_standard"      "doi"               
@@ -163,27 +134,17 @@ names(this.content)
     #> [16] "year"               "z_authors"
 
 ``` r
-this.content$best_oa_location$url
+this_content$best_oa_location$url
 ```
 
     #> NULL
 
-``` r
-# test map
-all_content = list(this.content,this.content)
-# note, map_df + extract doesn't work if there is an error since these fields are not present, need to adapt this in the extract function
-purrr::map_df(all_content,magrittr::extract,
-              c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
-```
+Function: extract\_unpaywall\_data()
+====================================
 
-    #> # A tibble: 2 x 5
-    #>   doi               is_oa journal_is_in_doaj data_standard title          
-    #>   <chr>             <lgl> <lgl>                      <int> <chr>          
-    #> 1 10.1159/000308973 FALSE FALSE                          2 The Effect of …
-    #> 2 10.1159/000308973 FALSE FALSE                          2 The Effect of …
+Function to extract OA availability, main contect, after fromJSON:
 
 ``` r
-# function to extract OA availability, main contect, after fromJSON
 extract_unpaywall_data = function(rawcontent) {
   rawcontent = jsonlite:::null_to_na(rawcontent)
   main_names = c("doi","is_oa","journal_is_in_doaj","data_standard","title")
@@ -213,13 +174,12 @@ extract_unpaywall_data = function(rawcontent) {
   }
   bind_cols(main_data,oa_avail)%>%add_column(error=error,message=message)
 }
-extract_unpaywall_data(fromJSON(rawToChar(raw.result$content)))
+extract_unpaywall_data(fromJSON(rawToChar(raw_result$content)))
 ```
 
-    #> # A tibble: 1 x 8
-    #>   doi    is_oa journal_is_in_d… data_standard title    url   error message
-    #>   <chr>  <lgl> <lgl>                    <int> <chr>    <lgl> <lgl> <lgl>  
-    #> 1 10.11… FALSE FALSE                        2 The Eff… NA    FALSE NA
+| doi               | is\_oa | journal\_is\_in\_doaj |  data\_standard| title                                                                                                          | url | error | message |
+|:------------------|:-------|:----------------------|---------------:|:---------------------------------------------------------------------------------------------------------------|:----|:------|:--------|
+| 10.1159/000308973 | FALSE  | FALSE                 |               2| The Effect of Natural and Artificial Light via the Eye on the Hormonal and Metabolic Balance of Animal and Man | NA  | FALSE | NA      |
 
 ``` r
 #extract_unpaywall_data(fromJSON(rawToChar(GET(url = url, path = "/v2/test")))) # should be NAs
@@ -228,10 +188,9 @@ tmp = GET(url = url, path = "/v2/10.1615/CritRevPhysRehabilMed.2015012338?email=
 extract_unpaywall_data(fromJSON(rawToChar(tmp$content)))
 ```
 
-    #> # A tibble: 1 x 8
-    #>   doi    is_oa journal_is_in_d… data_standard title    url   error message
-    #>   <chr>  <lgl> <lgl>                    <int> <chr>    <lgl> <lgl> <lgl>  
-    #> 1 10.16… FALSE FALSE                        2 Short-T… NA    FALSE NA
+| doi                                      | is\_oa | journal\_is\_in\_doaj |  data\_standard| title                                                                                                                 | url | error | message |
+|:-----------------------------------------|:-------|:----------------------|---------------:|:----------------------------------------------------------------------------------------------------------------------|:----|:------|:--------|
+| 10.1615/critrevphysrehabilmed.2015012338 | FALSE  | FALSE                 |               2| Short-Term Effects of Kinesiotaping on Fine Motor Function in Children with Cerebral Palsy-A Quasi-Experimental Study | NA  | FALSE | NA      |
 
 ``` r
 # should get an error message
@@ -239,10 +198,12 @@ tmp = GET(url = url, path = "/v2/10.1615/CritRevPhysRehabilMed.201301029?email=m
 extract_unpaywall_data(fromJSON(rawToChar(tmp$content)))
 ```
 
-    #> # A tibble: 1 x 8
-    #>   doi   is_oa journal_is_in_doaj data_standard title url   error message  
-    #>   <lgl> <lgl> <lgl>              <lgl>         <lgl> <lgl> <lgl> <chr>    
-    #> 1 NA    NA    NA                 NA            NA    NA    TRUE  '10.1615…
+| doi | is\_oa | journal\_is\_in\_doaj | data\_standard | title | url | error | message                                                                                                                   |
+|:----|:-------|:----------------------|:---------------|:------|:----|:------|:--------------------------------------------------------------------------------------------------------------------------|
+| NA  | NA     | NA                    | NA             | NA    | NA  | TRUE  | '10.1615/CritRevPhysRehabilMed.201301029' is an invalid doi. See <http://doi.org/10.1615/CritRevPhysRehabilMed.201301029> |
+
+Run extract function on set of unique DOIs in sample
+====================================================
 
 Now try all queries
 
@@ -286,44 +247,128 @@ if((class(tryload)=="try-error")||(update_raw_data)){
 
 #jsonlite:::null_to_na(unpaywall_raw)[[2]]
 main_res     <- unpaywall_raw%>%map_df(extract_unpaywall_data,.id="query")
+main_res     <- main_res%>%mutate(
+  oa_result = case_when(
+    error ~ "doi_input_error",
+    is_oa ~ "oa_found",
+    !is_oa ~ "oa_not_found")
+)
+```
+
+Combine results with original data
+----------------------------------
+
+Merge with original data, some had missing or duplicate dois
+
+``` r
 # main_res  <- purrr::map(unpaywall_raw,magrittr::extract,
 #                           c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
 # main_res  <- main_res%>%purrr::discard(is.null)
-res       <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywall=doi),by="query")
+res <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywall=doi),by="query")
+
+res$oa_result[is.na(res$oa_result)] = "no_doi_input"
 ```
 
-write to a file:
+Write to a file:
+----------------
 
 ``` r
 write_csv(res,
           path=here::here("results",unpaywall_results_file))
-
-
-res%>%tabyl(type,error)%>%adorn_title()
 ```
 
-    #>          error         
-    #>     type FALSE TRUE NA_
-    #>   borrow   579    9 222
-    #>  lending   640   11 122
+Unpaywall OA results:
+=====================
 
 ``` r
-res%>%tabyl(is_oa)%>%adorn_percentages()
+res%>%tabyl(oa_result)
 ```
 
-    #>  is_oa         n      percent valid_percent
-    #>  FALSE 0.9985500 0.0006307960  0.0008191551
-    #>   TRUE 0.9985500 0.0006307960  0.0008191551
-    #>     NA 0.9993687 0.0006313131            NA
+| oa\_result        |     n|    percent|
+|:------------------|-----:|----------:|
+| doi\_input\_error |    20|  0.0126342|
+| no\_doi\_input    |   344|  0.2173089|
+| oa\_found         |   210|  0.1326595|
+| oa\_not\_found    |  1009|  0.6373973|
 
 ``` r
-res %>% ggplot(aes(x=institution,fill=is_oa)) + geom_bar(position = "dodge")
+res%>%tabyl(oa_result,institution)%>%adorn_title()
 ```
 
-<img src="01-pull_unpaywall_data_files/figure-markdown_github/unnamed-chunk-10-1.png" width="100%" style="display: block; margin: auto;" />
+|                   | institution |     |     |
+|-------------------|:------------|-----|-----|
+| oa\_result        | pacific     | PSU | UP  |
+| doi\_input\_error | 14          | 4   | 2   |
+| no\_doi\_input    | 99          | 134 | 111 |
+| oa\_found         | 72          | 55  | 83  |
+| oa\_not\_found    | 357         | 340 | 312 |
 
 ``` r
-# is_oa is null when either the doi was missing so could  not submit to unpaywall, or if there was an error (invalid doi usually)
-
-# add flag for why is_oa is missing: missing doi in input vs invalid doi
+res%>%tabyl(oa_result,type)%>%adorn_title()
 ```
+
+|                   | type   |         |
+|-------------------|:-------|---------|
+| oa\_result        | borrow | lending |
+| doi\_input\_error | 9      | 11      |
+| no\_doi\_input    | 222    | 122     |
+| oa\_found         | 114    | 96      |
+| oa\_not\_found    | 465    | 544     |
+
+``` r
+res %>% ggplot(aes(x=institution,fill=oa_result)) + geom_bar(position = "dodge") + 
+  theme_minimal()
+```
+
+<img src="01-pull_unpaywall_data_files/figure-markdown_github/unnamed-chunk-15-1.png" width="100%" style="display: block; margin: auto;" />
+
+OA results: evidence
+--------------------
+
+``` r
+res%>%filter(is_oa==1)%>%tabyl(evidence)%>%adorn_pct_formatting()
+```
+
+| evidence                                                 |    n| percent |
+|:---------------------------------------------------------|----:|:--------|
+| oa journal (via doaj)                                    |    3| 1.4%    |
+| oa repository (via OAI-PMH doi match)                    |   48| 22.9%   |
+| oa repository (via OAI-PMH title and first author match) |   53| 25.2%   |
+| oa repository (via OAI-PMH title and last author match)  |    1| 0.5%    |
+| oa repository (via OAI-PMH title match)                  |    1| 0.5%    |
+| oa repository (via pmcid lookup)                         |    1| 0.5%    |
+| open (via crossref license, author manuscript)           |    2| 1.0%    |
+| open (via crossref license)                              |    5| 2.4%    |
+| open (via free pdf)                                      |   79| 37.6%   |
+| open (via page says license)                             |   14| 6.7%    |
+| open (via page says Open Access)                         |    3| 1.4%    |
+
+Which dois result in an error?
+------------------------------
+
+``` r
+res%>%filter(error)%>%select(institution,type,query,error,message)%>%kable
+```
+
+| institution | type    | query                                   | error | message                                                                                                                   |
+|:------------|:--------|:----------------------------------------|:------|:--------------------------------------------------------------------------------------------------------------------------|
+| pacific     | borrow  | 10.1007/s0059                           | TRUE  | '10.1007/s0059' is an invalid doi. See <http://doi.org/10.1007/s0059>                                                     |
+| pacific     | borrow  | 10.1007/s1182                           | TRUE  | '10.1007/s1182' is an invalid doi. See <http://doi.org/10.1007/s1182>                                                     |
+| pacific     | borrow  | 10.1007/s4061                           | TRUE  | '10.1007/s4061' is an invalid doi. See <http://doi.org/10.1007/s4061>                                                     |
+| pacific     | borrow  | 10.1234/0123456701234567891             | TRUE  | '10.1234/0123456701234567891' is an invalid doi. See <http://doi.org/10.1234/0123456701234567891>                         |
+| pacific     | borrow  | 10.3233/NRE-2012-0775                   | TRUE  | '10.3233/NRE-2012-0775' is an invalid doi. See <http://doi.org/10.3233/NRE-2012-0775>                                     |
+| pacific     | borrow  | 10.3290/j.ohpd.a32823                   | TRUE  | '10.3290/j.ohpd.a32823' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a32823>                                     |
+| pacific     | lending | 10.1093/clipsy.6.1.6                    | TRUE  | '10.1093/clipsy.6.1.6' is an invalid doi. See <http://doi.org/10.1093/clipsy.6.1.6>                                       |
+| pacific     | lending | 10.1300/J294v10n03\_08                  | TRUE  | '10.1300/J294v10n03\_08' is an invalid doi. See <http://doi.org/10.1300/J294v10n03_08>                                    |
+| pacific     | lending | 10.1615/CritRevPhysRehabilMed.201301029 | TRUE  | '10.1615/CritRevPhysRehabilMed.201301029' is an invalid doi. See <http://doi.org/10.1615/CritRevPhysRehabilMed.201301029> |
+| pacific     | lending | 10.1922/CDH\_3716Gibson05               | TRUE  | '10.1922/CDH\_3716Gibson05' is an invalid doi. See <http://doi.org/10.1922/CDH_3716Gibson05>                              |
+| pacific     | lending | 10.3290/j.ohpd.a29374                   | TRUE  | '10.3290/j.ohpd.a29374' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a29374>                                     |
+| pacific     | lending | 10.3290/j.ohpd.a32679                   | TRUE  | '10.3290/j.ohpd.a32679' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a32679>                                     |
+| pacific     | lending | 10.3290/j.qi.a31533                     | TRUE  | '10.3290/j.qi.a31533' is an invalid doi. See <http://doi.org/10.3290/j.qi.a31533>                                         |
+| pacific     | lending | 10.3899/jrheum                          | TRUE  | '10.3899/jrheum' is an invalid doi. See <http://doi.org/10.3899/jrheum>                                                   |
+| PSU         | borrow  | 10.15517/rfl.v16i2.19484                | TRUE  | '10.15517/rfl.v16i2.19484' is an invalid doi. See <http://doi.org/10.15517/rfl.v16i2.19484>                               |
+| PSU         | lending | 10.3726/978-3-0353-0378-0\_13           | TRUE  | '10.3726/978-3-0353-0378-0\_13' is an invalid doi. See <http://doi.org/10.3726/978-3-0353-0378-0_13>                      |
+| PSU         | lending | 10.4018/ijepr.201504010                 | TRUE  | '10.4018/ijepr.201504010' is an invalid doi. See <http://doi.org/10.4018/ijepr.201504010>                                 |
+| PSU         | lending | 10.1080/03007769508591590               | TRUE  | '10.1080/03007769508591590' is an invalid doi. See <http://doi.org/10.1080/03007769508591590>                             |
+| UP          | borrow  | 10.1080/00220973.1994.11072347          | TRUE  | '10.1080/00220973.1994.11072347' is an invalid doi. See <http://doi.org/10.1080/00220973.1994.11072347>                   |
+| UP          | borrow  | 10.2310/7070.2009.080165                | TRUE  | '10.2310/7070.2009.080165' is an invalid doi. See <http://doi.org/10.2310/7070.2009.080165>                               |
