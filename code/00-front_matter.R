@@ -2,12 +2,13 @@ library(tidyverse)
 library(readxl)
 library(skimr)
 library(janitor)
-library(here)
 
 #info from http://tophcito.blogspot.com/2015/11/accessing-apis-from-r-and-little-r.html
 library(httr)
 library(jsonlite)
 library(printr)
+
+library(rcrossref)
 
 date_updated <- "2018-06-18"
 unpaywall_datafile <- paste0(date_updated,"-unpaywall_raw.RData")

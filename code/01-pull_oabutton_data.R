@@ -6,6 +6,7 @@
 #'---
 
 #+ r setup, include=FALSE
+library(here)
 source(here("code","00-front_matter.R"))
 
 #' # Read Data

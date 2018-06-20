@@ -72,7 +72,7 @@ raw_result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-06-19 20:27
+    #>   Date: 2018-06-19 20:34
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
