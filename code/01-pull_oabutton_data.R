@@ -131,8 +131,10 @@ if((class(tryload)=="try-error")||(update_raw_data)){
 
 main_res     <- oabutton_raw%>%map_df(extract_availibility,.id="query")
 
-# note OA button finds a doi for this but it doesn't match the title nor the author;
-# could be other examples of this
+#' Note OA button finds a doi for this but it doesn't match the title nor the author; 
+#' could be other examples of this?
+#' 
+#' 
 main_res[259,]
 alldata[match(main_res$query[259],alldata$photo_article_title),]
 

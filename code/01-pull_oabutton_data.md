@@ -69,7 +69,7 @@ raw.result
 ```
 
     #> Response [https://api.openaccessbutton.org/]
-    #>   Date: 2018-07-02 19:04
+    #>   Date: 2018-07-02 19:35
     #>   Status: 200
     #>   Content-Type: application/json; charset=utf-8
     #>   Size: 43 B
@@ -199,9 +199,11 @@ if((class(tryload)=="try-error")||(update_raw_data)){
 }
 
 main_res     <- oabutton_raw%>%map_df(extract_availibility,.id="query")
+```
 
-# note OA button finds a doi for this but it doesn't match the title nor the author;
-# could be other examples of this
+Note OA button finds a doi for this but it doesn't match the title nor the author; could be other examples of this?
+
+``` r
 main_res[259,]
 ```
 
@@ -279,7 +281,7 @@ res %>% ggplot(aes(x=institution,fill=oabutton_oa_result)) + geom_bar(position =
   theme_minimal()
 ```
 
-<img src="01-pull_oabutton_data_files/figure-markdown_github/unnamed-chunk-11-1.png" width="100%" style="display: block; margin: auto;" />
+<img src="01-pull_oabutton_data_files/figure-markdown_github/unnamed-chunk-12-1.png" width="100%" style="display: block; margin: auto;" />
 
 OA results: source
 ------------------
