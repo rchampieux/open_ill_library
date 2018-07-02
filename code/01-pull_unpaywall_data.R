@@ -9,6 +9,12 @@
 library(here)
 source(here("code","00-front_matter.R"))
 
+# UPDATE THIS TO CHANGE FILES
+date_updated <- "2018-06-18"
+unpaywall_datafile <- paste0(date_updated,"-unpaywall_raw.RData")
+unpaywall_results_file <- paste0(date_updated,"-unpaywall_results.csv")
+update_raw_data <- FALSE
+
 #' # Read Data
 
 source(here("code","00-clean_input_data.R"))

@@ -10,11 +10,7 @@ library(printr)
 
 library(rcrossref)
 
-date_updated <- "2018-06-18"
-unpaywall_datafile <- paste0(date_updated,"-unpaywall_raw.RData")
-unpaywall_results_file <- paste0(date_updated,"-unpaywall_results.csv")
-#unpaywall_results_file <- paste0(lubridate::today(),"_unpaywall.csv")
-update_raw_data <- FALSE
+
 
 knitr::opts_chunk$set(
   eval       = TRUE,    # whether to run code in code chunk

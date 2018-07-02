@@ -1,7 +1,7 @@
 Pull Unpaywall Data
 ================
 Jessica Minnier
-2018-06-19
+2018-07-02
 
 Read Data
 =========
@@ -72,7 +72,7 @@ raw_result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-06-19 20:34
+    #>   Date: 2018-07-02 19:08
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
