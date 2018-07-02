@@ -72,7 +72,7 @@ raw_result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-07-02 19:08
+    #>   Date: 2018-07-02 19:43
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
@@ -255,6 +255,18 @@ main_res     <- main_res%>%mutate(
 )
 ```
 
+Unique queries: OA found
+
+``` r
+main_res%>%tabyl(oa_result)
+```
+
+| oa\_result        |     n|    percent|
+|:------------------|-----:|----------:|
+| doi\_input\_error |    20|  0.0162470|
+| oa\_found         |   209|  0.1697807|
+| oa\_not\_found    |  1002|  0.8139724|
+
 Combine results with original data
 ----------------------------------
 
@@ -320,7 +332,7 @@ res %>% ggplot(aes(x=institution,fill=oa_result)) + geom_bar(position = "dodge")
   theme_minimal()
 ```
 
-<img src="01-pull_unpaywall_data_files/figure-markdown_github/unnamed-chunk-15-1.png" width="100%" style="display: block; margin: auto;" />
+<img src="01-pull_unpaywall_data_files/figure-markdown_github/unnamed-chunk-16-1.png" width="100%" style="display: block; margin: auto;" />
 
 OA results: evidence
 --------------------

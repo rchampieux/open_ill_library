@@ -144,6 +144,10 @@ main_res     <- main_res%>%mutate(
     !is.na(source) ~ "oa_found")
 )
 
+#' Unique queries: OA found
+#' 
+main_res%>%tabyl(oabutton_oa_result)
+
 #' Merge with original data, some had missing or duplicate dois
 
 res <- left_join(alldata,main_res%>%rename(oabutton_match=match,

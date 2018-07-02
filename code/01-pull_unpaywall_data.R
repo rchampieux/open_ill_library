@@ -166,6 +166,11 @@ main_res     <- main_res%>%mutate(
     !is_oa ~ "oa_not_found")
 )
 
+#' Unique queries: OA found
+#' 
+main_res%>%tabyl(oa_result)
+
+
 #' ## Combine results with original data
 #' 
 #' Merge with original data, some had missing or duplicate dois

@@ -69,7 +69,7 @@ raw.result
 ```
 
     #> Response [https://api.openaccessbutton.org/]
-    #>   Date: 2018-07-02 19:35
+    #>   Date: 2018-07-02 19:42
     #>   Status: 200
     #>   Content-Type: application/json; charset=utf-8
     #>   Size: 43 B
@@ -227,6 +227,17 @@ main_res     <- main_res%>%mutate(
 )
 ```
 
+Unique queries: OA found
+
+``` r
+main_res%>%tabyl(oabutton_oa_result)
+```
+
+| oabutton\_oa\_result |     n|    percent|
+|:---------------------|-----:|----------:|
+| oa\_found            |    35|  0.0222222|
+| oa\_not\_found       |  1540|  0.9777778|
+
 Merge with original data, some had missing or duplicate dois
 
 ``` r
@@ -281,7 +292,7 @@ res %>% ggplot(aes(x=institution,fill=oabutton_oa_result)) + geom_bar(position =
   theme_minimal()
 ```
 
-<img src="01-pull_oabutton_data_files/figure-markdown_github/unnamed-chunk-12-1.png" width="100%" style="display: block; margin: auto;" />
+<img src="01-pull_oabutton_data_files/figure-markdown_github/unnamed-chunk-13-1.png" width="100%" style="display: block; margin: auto;" />
 
 OA results: source
 ------------------
