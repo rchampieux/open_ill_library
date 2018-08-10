@@ -7,10 +7,13 @@
 
 #+ r setup, include=FALSE
 library(here)
+library(urltools)
+library(glue)
 source(here("code","00-front_matter.R"))
 
 # UPDATE THIS TO CHANGE FILES
-date_updated <- "2018-07-01"
+#date_updated <- "2018-07-01"
+date_updated <- "2018-08-10"
 oabutton_datafile <- paste0(date_updated,"-oabutton_raw.RData")
 oabutton_results_file <- paste0(date_updated,"-oabutton_results.csv")
 update_raw_data <- FALSE
@@ -40,64 +43,83 @@ tmp[tmp>1]
 
 url  <- "https://api.openaccessbutton.org"
 path <- "/"
-apikey <- "7d8ba1ed9bd29e178475b9b8f2c211"
+get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData")) # apikey
+if(class(get_apikey)=="try-error") {apikey <- ""} # for others running
 
-# get the result in JSON
+#' A blank query. Get the result in JSON
 raw.result <- GET(url = url, path = path)
 raw.result
 names(raw.result)
 
 path <- "availability"
 
-#' Need to make a function that creates a list out of a query and adds appropriate name
-makeQuery <- function(classifier) {
-  classifier = paste0(classifier,"?apikey=",apikey)
-  this.query <- list(classifier)
-  names(this.query) <- "url"
-  return(this.query)
+#' Need to make a function that creates the appropriate URL
+# Note: need to encode just classifier or else it doesn't work in api
+makeQuery <- function(classifier, name="url") {
+  classifier = paste0(url,"/",path,"?",name,"=",urltools::url_encode(classifier),"&apikey=",apikey)
+  return(classifier)
 }
 
-# make a query out of a list of articles
+#' Make a query out of a list of articles; if DOI not available, use title.
 alldata = alldata %>% 
-  mutate(query=ifelse(is.na(doi),article_title,doi)) %>% 
-  mutate(query=ifelse(is.na(query),photo_article_title,query))
-query_all  <- unique(na.omit(alldata$query))
+  mutate(query=ifelse(is.na(doi),article_title,doi),
+         queryname=ifelse(is.na(doi),"title","doi")) %>% 
+  mutate(query=ifelse(is.na(query),photo_article_title,query),
+         queryname=ifelse(is.na(query),"title",queryname))
+
+query_data  <- alldata%>%select(query,queryname) %>% filter(!is.na(query)) %>% unique %>% 
+  add_column(url=url,apikey=apikey,path=path) %>%
+  mutate(
+    query_nice = urltools::url_encode(query),
+    query_path = (glue::glue("{url}/{path}?{queryname}={query_nice}&apikey={apikey}")))
+
 nrow(alldata)
-length(query_all)
-queries <- lapply(as.list(query_all), makeQuery)
+nrow(query_data)
+queries <- query_data$query_path
+
 
 #' Some testing, one article first
 
 # should be
 # https://api.openaccessbutton.org/availability?url=http%3A%2F%2Fjournals.plos.org%2Fplosone%2Farticle%3Fid%3Dinfo%253Adoi%2F10.1371%2Fjournal.pone.0163591
 # raw.result.test = GET(url = url, path = path, query = list(url=unlist(alldata$doi[1])))
-raw.result = GET(url = url, path = path, query = queries[[6]]) # a doi
-# raw.result = GET(url = url, path = path, query = queries[[191]]) # a title
+# raw.result = GET(makeQuery("10.1371/journal.pone.0163591")) # example
+# raw.result = GET(queries[[191]]) # a title
+raw.result = GET(queries[[28]]) # a doi with OA
 names(raw.result)
 this.raw.content <- rawToChar(raw.result$content)
 this.content <- fromJSON(this.raw.content)
 this.content$data$availability
 
+rawcontent = this.content # for testing
 extract_availibility = function(rawcontent) {
   if(length(rawcontent$data$availability)>0){
     bind_cols(data_frame(match=rawcontent$data$match),
               as_data_frame(rawcontent$data$availability),
-              data_frame(source=rawcontent$data$meta$article$source))
+              data_frame(
+                source=rawcontent$data$meta$article$source,
+                title=ifelse(length(rawcontent$data$meta$article$title)>0,rawcontent$data$meta$article$title,NA) # not always available
+                ))
   }else{
     bind_cols(data_frame(match=rawcontent$data$match),url=NA)
   }
 }
 extract_availibility(this.content)
-raw = GET(url = url, path = path, query = queries[[6]])
+
+#' Testing the extraction function:
+#' 
+raw = GET(queries[[6]])
 extract_availibility(fromJSON(rawToChar(raw$content)))
 
+raw = GET(makeQuery("10.1016/j.chemosphere.2016.06.071"))
+extract_availibility(fromJSON(rawToChar(raw$content)))
 
+raw = GET(makeQuery("Using aquatic vegetation to remediate nitrate, ammonium, and soluble reactive
+2 phosphorus in simulated runoff",name="title"))
+extract_availibility(fromJSON(rawToChar(raw$content)))
 
 #' Now try all queries
 #' 
-
-
-
 
 tryload = try(load(here("results",oabutton_datafile)))
 if((class(tryload)=="try-error")||(update_raw_data)){
@@ -111,7 +133,7 @@ if((class(tryload)=="try-error")||(update_raw_data)){
   t0 = Sys.time()
   for (i in 1:length(oabutton_raw)) {
     this.query       <- queries[[i]]
-    raw              <- GET(url = url, path = path, query = this.query)
+    raw              <- GET(this.query)
     oabutton_raw[[i]] <-  safe_fromJSON(rawToChar(raw$content))
     message(".", appendLF = FALSE)
     if(i%%50==0) print(i)
@@ -119,11 +141,11 @@ if((class(tryload)=="try-error")||(update_raw_data)){
   }
   Sys.time()-t0
   
-  names(oabutton_raw) = query_all
-  oabutton_raw0 = oabutton_raw
-  oabutton_error = oabutton_raw0%>%map(magrittr::extract2,"error")
-  oabutton_raw = oabutton_raw0%>%map(magrittr::extract2,"result")
-  names(oabutton_error) = names(oabutton_raw) = query_all
+  names(oabutton_raw) = query_data$query
+  oabutton_raw0 <- oabutton_raw
+  oabutton_error <- oabutton_raw0%>%map(magrittr::extract2,"error")
+  oabutton_raw <- oabutton_raw0%>%map(magrittr::extract2,"result")
+  names(oabutton_error) <- names(oabutton_raw) <- query_data$query
   rm(oabutton_raw0)
   
   save(oabutton_raw, oabutton_error, file=here("results",oabutton_datafile))
