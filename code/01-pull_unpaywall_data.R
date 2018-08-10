@@ -184,6 +184,8 @@ res <- left_join(alldata%>%mutate(query=doi),main_res,by="query")
 res$unpaywall_oa_result[is.na(res$unpaywall_oa_result)] = "no_doi_input"
 
 #' ## Write to a file:
+#' 
+res <- res %>% mutate(unpaywall_query = query)
 
 write_csv(res,
           path=here::here("results",unpaywall_results_file))
