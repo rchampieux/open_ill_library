@@ -178,9 +178,10 @@ main_res%>%tabyl(oa_result)
 # main_res  <- purrr::map(unpaywall_raw,magrittr::extract,
 #                           c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
 # main_res  <- main_res%>%purrr::discard(is.null)
-res <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywall=doi),by="query")
+colnames(main_res)[-1] <- paste0("unpaywall_",colnames(main_res)[-1])
+res <- left_join(alldata%>%mutate(query=doi),main_res,by="query")
 
-res$oa_result[is.na(res$oa_result)] = "no_doi_input"
+res$unpaywall_oa_result[is.na(res$unpaywall_oa_result)] = "no_doi_input"
 
 #' ## Write to a file:
 
@@ -189,21 +190,21 @@ write_csv(res,
 
 #' # Unpaywall OA results:
 #' 
-res%>%tabyl(oa_result)
-res%>%tabyl(oa_result,institution)%>%adorn_title()
-res%>%tabyl(oa_result,type)%>%adorn_title()
+res%>%tabyl(unpaywall_oa_result)
+res%>%tabyl(unpaywall_oa_result,institution)%>%adorn_title()
+res%>%tabyl(unpaywall_oa_result,type)%>%adorn_title()
 
-res %>% ggplot(aes(x=institution,fill=oa_result)) + geom_bar(position = "dodge") + 
+res %>% ggplot(aes(x=institution,fill=unpaywall_oa_result)) + geom_bar(position = "dodge") + 
   theme_minimal()
 
 #' ## OA results: evidence
 #' 
-res%>%filter(is_oa==1)%>%tabyl(evidence)%>%adorn_pct_formatting()
+res%>%filter(unpaywall_is_oa==1)%>%tabyl(unpaywall_evidence)%>%adorn_pct_formatting()
 
 
 #' ## Which dois result in an error?
 #' 
-res%>%filter(error)%>%select(institution,type,query,error,message)%>%kable
+res%>%filter(unpaywall_error)%>%select(institution,type,query,unpaywall_error,unpaywall_message)%>%kable
 
 
 

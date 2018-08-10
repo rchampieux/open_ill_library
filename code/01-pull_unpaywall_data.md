@@ -1,7 +1,7 @@
 Pull Unpaywall Data
 ================
 Jessica Minnier
-2018-07-02
+2018-08-10
 
 Read Data
 =========
@@ -72,7 +72,7 @@ raw_result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-07-02 19:43
+    #>   Date: 2018-08-10 23:15
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
@@ -276,9 +276,10 @@ Merge with original data, some had missing or duplicate dois
 # main_res  <- purrr::map(unpaywall_raw,magrittr::extract,
 #                           c("doi","is_oa","journal_is_in_doaj","data_standard","title"))
 # main_res  <- main_res%>%purrr::discard(is.null)
-res <- left_join(alldata%>%mutate(query=doi),main_res%>%rename(doi_unpaywall=doi),by="query")
+colnames(main_res)[-1] <- paste0("unpaywall_",colnames(main_res)[-1])
+res <- left_join(alldata%>%mutate(query=doi),main_res,by="query")
 
-res$oa_result[is.na(res$oa_result)] = "no_doi_input"
+res$unpaywall_oa_result[is.na(res$unpaywall_oa_result)] = "no_doi_input"
 ```
 
 Write to a file:
@@ -293,42 +294,42 @@ Unpaywall OA results:
 =====================
 
 ``` r
-res%>%tabyl(oa_result)
+res%>%tabyl(unpaywall_oa_result)
 ```
 
-| oa\_result        |     n|    percent|
-|:------------------|-----:|----------:|
-| doi\_input\_error |    20|  0.0126342|
-| no\_doi\_input    |   344|  0.2173089|
-| oa\_found         |   210|  0.1326595|
-| oa\_not\_found    |  1009|  0.6373973|
+| unpaywall\_oa\_result |     n|    percent|
+|:----------------------|-----:|----------:|
+| doi\_input\_error     |    20|  0.0126342|
+| no\_doi\_input        |   344|  0.2173089|
+| oa\_found             |   210|  0.1326595|
+| oa\_not\_found        |  1009|  0.6373973|
 
 ``` r
-res%>%tabyl(oa_result,institution)%>%adorn_title()
+res%>%tabyl(unpaywall_oa_result,institution)%>%adorn_title()
 ```
 
-|                   | institution |     |     |
-|-------------------|:------------|-----|-----|
-| oa\_result        | pacific     | PSU | UP  |
-| doi\_input\_error | 14          | 4   | 2   |
-| no\_doi\_input    | 99          | 134 | 111 |
-| oa\_found         | 72          | 55  | 83  |
-| oa\_not\_found    | 357         | 340 | 312 |
+|                       | institution |     |     |
+|-----------------------|:------------|-----|-----|
+| unpaywall\_oa\_result | pacific     | PSU | UP  |
+| doi\_input\_error     | 14          | 4   | 2   |
+| no\_doi\_input        | 99          | 134 | 111 |
+| oa\_found             | 72          | 55  | 83  |
+| oa\_not\_found        | 357         | 340 | 312 |
 
 ``` r
-res%>%tabyl(oa_result,type)%>%adorn_title()
+res%>%tabyl(unpaywall_oa_result,type)%>%adorn_title()
 ```
 
-|                   | type   |         |
-|-------------------|:-------|---------|
-| oa\_result        | borrow | lending |
-| doi\_input\_error | 9      | 11      |
-| no\_doi\_input    | 222    | 122     |
-| oa\_found         | 114    | 96      |
-| oa\_not\_found    | 465    | 544     |
+|                       | type   |         |
+|-----------------------|:-------|---------|
+| unpaywall\_oa\_result | borrow | lending |
+| doi\_input\_error     | 9      | 11      |
+| no\_doi\_input        | 222    | 122     |
+| oa\_found             | 114    | 96      |
+| oa\_not\_found        | 465    | 544     |
 
 ``` r
-res %>% ggplot(aes(x=institution,fill=oa_result)) + geom_bar(position = "dodge") + 
+res %>% ggplot(aes(x=institution,fill=unpaywall_oa_result)) + geom_bar(position = "dodge") + 
   theme_minimal()
 ```
 
@@ -338,10 +339,10 @@ OA results: evidence
 --------------------
 
 ``` r
-res%>%filter(is_oa==1)%>%tabyl(evidence)%>%adorn_pct_formatting()
+res%>%filter(unpaywall_is_oa==1)%>%tabyl(unpaywall_evidence)%>%adorn_pct_formatting()
 ```
 
-| evidence                                                 |    n| percent |
+| unpaywall\_evidence                                      |    n| percent |
 |:---------------------------------------------------------|----:|:--------|
 | oa journal (via doaj)                                    |    3| 1.4%    |
 | oa repository (via OAI-PMH doi match)                    |   48| 22.9%   |
@@ -359,28 +360,28 @@ Which dois result in an error?
 ------------------------------
 
 ``` r
-res%>%filter(error)%>%select(institution,type,query,error,message)%>%kable
+res%>%filter(unpaywall_error)%>%select(institution,type,query,unpaywall_error,unpaywall_message)%>%kable
 ```
 
-| institution | type    | query                                   | error | message                                                                                                                   |
-|:------------|:--------|:----------------------------------------|:------|:--------------------------------------------------------------------------------------------------------------------------|
-| pacific     | borrow  | 10.1007/s0059                           | TRUE  | '10.1007/s0059' is an invalid doi. See <http://doi.org/10.1007/s0059>                                                     |
-| pacific     | borrow  | 10.1007/s1182                           | TRUE  | '10.1007/s1182' is an invalid doi. See <http://doi.org/10.1007/s1182>                                                     |
-| pacific     | borrow  | 10.1007/s4061                           | TRUE  | '10.1007/s4061' is an invalid doi. See <http://doi.org/10.1007/s4061>                                                     |
-| pacific     | borrow  | 10.1234/0123456701234567891             | TRUE  | '10.1234/0123456701234567891' is an invalid doi. See <http://doi.org/10.1234/0123456701234567891>                         |
-| pacific     | borrow  | 10.3233/NRE-2012-0775                   | TRUE  | '10.3233/NRE-2012-0775' is an invalid doi. See <http://doi.org/10.3233/NRE-2012-0775>                                     |
-| pacific     | borrow  | 10.3290/j.ohpd.a32823                   | TRUE  | '10.3290/j.ohpd.a32823' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a32823>                                     |
-| pacific     | lending | 10.1093/clipsy.6.1.6                    | TRUE  | '10.1093/clipsy.6.1.6' is an invalid doi. See <http://doi.org/10.1093/clipsy.6.1.6>                                       |
-| pacific     | lending | 10.1300/J294v10n03\_08                  | TRUE  | '10.1300/J294v10n03\_08' is an invalid doi. See <http://doi.org/10.1300/J294v10n03_08>                                    |
-| pacific     | lending | 10.1615/CritRevPhysRehabilMed.201301029 | TRUE  | '10.1615/CritRevPhysRehabilMed.201301029' is an invalid doi. See <http://doi.org/10.1615/CritRevPhysRehabilMed.201301029> |
-| pacific     | lending | 10.1922/CDH\_3716Gibson05               | TRUE  | '10.1922/CDH\_3716Gibson05' is an invalid doi. See <http://doi.org/10.1922/CDH_3716Gibson05>                              |
-| pacific     | lending | 10.3290/j.ohpd.a29374                   | TRUE  | '10.3290/j.ohpd.a29374' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a29374>                                     |
-| pacific     | lending | 10.3290/j.ohpd.a32679                   | TRUE  | '10.3290/j.ohpd.a32679' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a32679>                                     |
-| pacific     | lending | 10.3290/j.qi.a31533                     | TRUE  | '10.3290/j.qi.a31533' is an invalid doi. See <http://doi.org/10.3290/j.qi.a31533>                                         |
-| pacific     | lending | 10.3899/jrheum                          | TRUE  | '10.3899/jrheum' is an invalid doi. See <http://doi.org/10.3899/jrheum>                                                   |
-| PSU         | borrow  | 10.15517/rfl.v16i2.19484                | TRUE  | '10.15517/rfl.v16i2.19484' is an invalid doi. See <http://doi.org/10.15517/rfl.v16i2.19484>                               |
-| PSU         | lending | 10.3726/978-3-0353-0378-0\_13           | TRUE  | '10.3726/978-3-0353-0378-0\_13' is an invalid doi. See <http://doi.org/10.3726/978-3-0353-0378-0_13>                      |
-| PSU         | lending | 10.4018/ijepr.201504010                 | TRUE  | '10.4018/ijepr.201504010' is an invalid doi. See <http://doi.org/10.4018/ijepr.201504010>                                 |
-| PSU         | lending | 10.1080/03007769508591590               | TRUE  | '10.1080/03007769508591590' is an invalid doi. See <http://doi.org/10.1080/03007769508591590>                             |
-| UP          | borrow  | 10.1080/00220973.1994.11072347          | TRUE  | '10.1080/00220973.1994.11072347' is an invalid doi. See <http://doi.org/10.1080/00220973.1994.11072347>                   |
-| UP          | borrow  | 10.2310/7070.2009.080165                | TRUE  | '10.2310/7070.2009.080165' is an invalid doi. See <http://doi.org/10.2310/7070.2009.080165>                               |
+| institution |   type  |                  query                  | unpaywall\_error |                                                     unpaywall\_message                                                    |
+|:-----------:|:-------:|:---------------------------------------:|:----------------:|:-------------------------------------------------------------------------------------------------------------------------:|
+|   pacific   |  borrow |              10.1007/s0059              |       TRUE       |                           '10.1007/s0059' is an invalid doi. See <http://doi.org/10.1007/s0059>                           |
+|   pacific   |  borrow |              10.1007/s1182              |       TRUE       |                           '10.1007/s1182' is an invalid doi. See <http://doi.org/10.1007/s1182>                           |
+|   pacific   |  borrow |              10.1007/s4061              |       TRUE       |                           '10.1007/s4061' is an invalid doi. See <http://doi.org/10.1007/s4061>                           |
+|   pacific   |  borrow |       10.1234/0123456701234567891       |       TRUE       |             '10.1234/0123456701234567891' is an invalid doi. See <http://doi.org/10.1234/0123456701234567891>             |
+|   pacific   |  borrow |          10.3233/NRE-2012-0775          |       TRUE       |                   '10.3233/NRE-2012-0775' is an invalid doi. See <http://doi.org/10.3233/NRE-2012-0775>                   |
+|   pacific   |  borrow |          10.3290/j.ohpd.a32823          |       TRUE       |                   '10.3290/j.ohpd.a32823' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a32823>                   |
+|   pacific   | lending |           10.1093/clipsy.6.1.6          |       TRUE       |                    '10.1093/clipsy.6.1.6' is an invalid doi. See <http://doi.org/10.1093/clipsy.6.1.6>                    |
+|   pacific   | lending |          10.1300/J294v10n03\_08         |       TRUE       |                   '10.1300/J294v10n03\_08' is an invalid doi. See <http://doi.org/10.1300/J294v10n03_08>                  |
+|   pacific   | lending | 10.1615/CritRevPhysRehabilMed.201301029 |       TRUE       | '10.1615/CritRevPhysRehabilMed.201301029' is an invalid doi. See <http://doi.org/10.1615/CritRevPhysRehabilMed.201301029> |
+|   pacific   | lending |        10.1922/CDH\_3716Gibson05        |       TRUE       |                '10.1922/CDH\_3716Gibson05' is an invalid doi. See <http://doi.org/10.1922/CDH_3716Gibson05>               |
+|   pacific   | lending |          10.3290/j.ohpd.a29374          |       TRUE       |                   '10.3290/j.ohpd.a29374' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a29374>                   |
+|   pacific   | lending |          10.3290/j.ohpd.a32679          |       TRUE       |                   '10.3290/j.ohpd.a32679' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a32679>                   |
+|   pacific   | lending |           10.3290/j.qi.a31533           |       TRUE       |                     '10.3290/j.qi.a31533' is an invalid doi. See <http://doi.org/10.3290/j.qi.a31533>                     |
+|   pacific   | lending |              10.3899/jrheum             |       TRUE       |                          '10.3899/jrheum' is an invalid doi. See <http://doi.org/10.3899/jrheum>                          |
+|     PSU     |  borrow |         10.15517/rfl.v16i2.19484        |       TRUE       |                '10.15517/rfl.v16i2.19484' is an invalid doi. See <http://doi.org/10.15517/rfl.v16i2.19484>                |
+|     PSU     | lending |      10.3726/978-3-0353-0378-0\_13      |       TRUE       |            '10.3726/978-3-0353-0378-0\_13' is an invalid doi. See <http://doi.org/10.3726/978-3-0353-0378-0_13>           |
+|     PSU     | lending |         10.4018/ijepr.201504010         |       TRUE       |                 '10.4018/ijepr.201504010' is an invalid doi. See <http://doi.org/10.4018/ijepr.201504010>                 |
+|     PSU     | lending |        10.1080/03007769508591590        |       TRUE       |               '10.1080/03007769508591590' is an invalid doi. See <http://doi.org/10.1080/03007769508591590>               |
+|      UP     |  borrow |      10.1080/00220973.1994.11072347     |       TRUE       |          '10.1080/00220973.1994.11072347' is an invalid doi. See <http://doi.org/10.1080/00220973.1994.11072347>          |
+|      UP     |  borrow |         10.2310/7070.2009.080165        |       TRUE       |                '10.2310/7070.2009.080165' is an invalid doi. See <http://doi.org/10.2310/7070.2009.080165>                |
