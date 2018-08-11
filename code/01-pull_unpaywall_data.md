@@ -72,7 +72,7 @@ raw_result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-08-10 23:15
+    #>   Date: 2018-08-11 00:00
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
@@ -286,6 +286,8 @@ Write to a file:
 ----------------
 
 ``` r
+res <- res %>% mutate(unpaywall_query = query)
+
 write_csv(res,
           path=here::here("results",unpaywall_results_file))
 ```
