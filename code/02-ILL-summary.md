@@ -7,6 +7,7 @@ Jessica Minnier
     -   [OA Button](#oa-button)
     -   [Unpaywall](#unpaywall)
     -   [Crosstab](#crosstab)
+-   [Total found](#total-found)
 
 Table of OA Results
 ===================
@@ -91,3 +92,20 @@ res %>% ggplot(aes(x=oabutton_oa_result,fill=unpaywall_oa_result)) + geom_bar(po
 ```
 
 <img src="02-ILL-summary_files/figure-markdown_github/unnamed-chunk-7-2.png" width="100%" style="display: block; margin: auto;" />
+
+Total found
+===========
+
+``` r
+res %>% 
+  mutate(oa_by_either_method = 
+                 ifelse(
+                   (unpaywall_oa_result=="oa_found")|(oabutton_oa_result=="oa_found"), "oa_found", "oa_not_found")) %>%
+  tabyl(oa_by_either_method) %>% adorn_totals() %>% adorn_pct_formatting()
+```
+
+| oa\_by\_either\_method |     n| percent |
+|:-----------------------|-----:|:--------|
+| oa\_found              |   380| 24.0%   |
+| oa\_not\_found         |  1203| 76.0%   |
+| Total                  |  1583| 100.0%  |

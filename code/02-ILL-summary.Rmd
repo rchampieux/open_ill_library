@@ -104,3 +104,15 @@ res %>% ggplot(aes(x=oabutton_oa_result,fill=unpaywall_oa_result)) + geom_bar(po
   theme_minimal() + ggtitle("OA Button results, showing proportion of Unpaywall results")
 ```
 
+# Total found
+
+```{r}
+res %>% 
+  mutate(oa_by_either_method = 
+                 ifelse(
+                   (unpaywall_oa_result=="oa_found")|(oabutton_oa_result=="oa_found"), "oa_found", "oa_not_found")) %>%
+  tabyl(oa_by_either_method) %>% adorn_totals() %>% adorn_pct_formatting()
+                   
+```
+
+
