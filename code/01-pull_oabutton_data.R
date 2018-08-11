@@ -175,12 +175,18 @@ main_res%>%tabyl(oabutton_oa_result)
 res <- left_join(alldata,main_res%>%rename(oabutton_match=match,
                                            oabutton_url=url,
                                            oabutton_type=type,
+                                           oabutton_title=title,
                                            oabutton_source=source),by="query")
+# res <- res %>% mutate(
+#   oabutton_oa_result = ifelse(is.na(oabutton_oa_result),"no_doi_or_title_input",oabutton_oa_result)
+#   )
+
 #' ## Write to a file:
+#' 
+res <- res %>% rename(oabutton_query=query,oabutton_queryname=queryname)
 
 write_csv(res,
           path=here::here("results",oabutton_results_file))
-
 
 
 #' # OA Button OA results:
@@ -194,7 +200,9 @@ res %>% ggplot(aes(x=institution,fill=oabutton_oa_result)) + geom_bar(position =
 
 #' ## OA results: source
 #' 
-res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%adorn_pct_formatting()
+res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%
+  adorn_totals()%>%
+  adorn_pct_formatting()
 
 
 

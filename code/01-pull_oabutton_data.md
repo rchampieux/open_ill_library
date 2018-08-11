@@ -61,7 +61,8 @@ Info: <https://openaccessbutton.org/api>
 ``` r
 url  <- "https://api.openaccessbutton.org"
 path <- "/"
-load(file="~/Dropbox/oabutton_apikey.RData") # apikey
+get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData")) # apikey
+if(class(get_apikey)=="try-error") {apikey <- ""} # for others running
 ```
 
 A blank query. Get the result in JSON
@@ -72,7 +73,7 @@ raw.result
 ```
 
     #> Response [https://api.openaccessbutton.org/]
-    #>   Date: 2018-08-10 22:55
+    #>   Date: 2018-08-10 23:40
     #>   Status: 200
     #>   Content-Type: application/json; charset=utf-8
     #>   Size: 43 B
@@ -128,9 +129,6 @@ nrow(query_data)
 
 ``` r
 queries <- query_data$query_path
-
-#https://api.openaccessbutton.org/availability?url=10.1016/j.cub.2012.03.023&apikey=7d8ba1ed9bd29e178475b9b8f2c211
-#https://api.openaccessbutton.org/availability?url=10.1016/j.cub.2012.03.023
 ```
 
 Some testing, one article first
@@ -289,13 +287,19 @@ Merge with original data, some had missing or duplicate dois
 res <- left_join(alldata,main_res%>%rename(oabutton_match=match,
                                            oabutton_url=url,
                                            oabutton_type=type,
+                                           oabutton_title=title,
                                            oabutton_source=source),by="query")
+# res <- res %>% mutate(
+#   oabutton_oa_result = ifelse(is.na(oabutton_oa_result),"no_doi_or_title_input",oabutton_oa_result)
+#   )
 ```
 
 Write to a file:
 ----------------
 
 ``` r
+res <- res %>% rename(oabutton_query=query,oabutton_queryname=queryname)
+
 write_csv(res,
           path=here::here("results",oabutton_results_file))
 ```
@@ -343,7 +347,9 @@ OA results: source
 ------------------
 
 ``` r
-res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%adorn_pct_formatting()
+res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%
+  adorn_totals()%>%
+  adorn_pct_formatting()
 ```
 
 | oabutton\_source |    n| percent |
@@ -354,3 +360,4 @@ res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%adorn_pc
 | doaj             |    3| 0.8%    |
 | eupmc            |   75| 20.2%   |
 | oadoi            |  145| 39.0%   |
+| Total            |  372| 100.0%  |
