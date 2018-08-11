@@ -3,6 +3,8 @@ title: "ILL Summary of OA Sources"
 author: "Jessica Minnier"
 date: '`r Sys.Date()`'
 output:   
+  github_document:
+    toc: yes
   html_document:
     code_folding: hide
     highlight: pygments
@@ -12,8 +14,6 @@ output:
     theme: yeti
     toc: yes
     toc_float: yes
-  github_document:
-    toc: yes
 ---
 
 
