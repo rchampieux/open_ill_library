@@ -1,0 +1,106 @@
+---
+title: "ILL Summary of OA Sources"
+author: "Jessica Minnier"
+date: '`r Sys.Date()`'
+output:   
+  html_document:
+    code_folding: hide
+    highlight: pygments
+    keep_md: no
+    number_sections: yes
+    smart: yes
+    theme: yeti
+    toc: yes
+    toc_float: yes
+  github_document:
+    toc: yes
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(skimr)
+library(janitor)
+library(jmmisc)
+library(here)
+#### Global chunk options -----------------------------
+
+knitr::opts_chunk$set(
+  eval       = TRUE,    # whether to run code in code chunk
+  include    = TRUE,    # whether to include the chunk output
+  echo       = FALSE,   # Whether to show code chunk in final output
+  error      = TRUE,    # whether to display error messages
+  message    = FALSE,   # whether to preserve messages
+  warning    = FALSE,   # whether to preserve warnings
+  comment    = "#>",    # a character string to append at start
+                        # of each line of results in final document
+  tidy       = FALSE,   # whether to tidy code chunks for display
+  dpi        = 96, 
+  fig.width  = 6,       # consistent width for figures
+  fig.asp    = 0.618,   # the golden ratio, can be adjusted in individual chunks
+  out.width  = "100%",   # controls the output size
+  fig.align  = "center" # give plot room to breathe
+)
+```
+
+```{r, echo=FALSE}
+source(here("code","01-pull_oabutton_data.R"))
+res_oabutton <- res
+source(here("code","01-pull_unpaywall_data.R"))
+res_unpaywall <- res
+res <- left_join(res_unpaywall,res_oabutton)
+```
+
+# Table of OA Results
+
+## OA Button
+
+```{r}
+res %>% tabyl(oabutton_oa_result) %>% adorn_totals() %>% adorn_pct_formatting()
+```
+
+```{r}
+res %>% ggplot(aes(x=institution,fill=oabutton_oa_result)) + 
+  geom_bar(position = "dodge") + 
+  theme_minimal()
+```
+
+## Unpaywall
+
+```{r}
+res %>% tabyl(unpaywall_oa_result) %>% adorn_totals() %>% adorn_pct_formatting() 
+```
+
+```{r}
+res %>% ggplot(aes(x=institution,fill=unpaywall_oa_result)) + geom_bar(position = "dodge") + 
+  theme_minimal()
+```
+
+
+## Crosstab
+
+Note OA button found some OA articles that did not have a doi, as well as some articles that had a doi. Unpaywall just found a few extra articles.
+
+Below is % ($n$) where % is percent of total number of queries `r nrow(res)` and $n$ is number of queries. The columns are unpaywall results and the rows are OA button results.
+
+```{r}
+res %>% tabyl(oabutton_oa_result, unpaywall_oa_result) %>% 
+  adorn_totals(where = c("row","col")) %>%
+  adorn_percentages(denominator = "all") %>%
+  adorn_pct_formatting() %>% 
+  adorn_ns() %>%
+  adorn_title() 
+```
+
+
+
+```{r}
+res %>% ggplot(aes(x=oabutton_oa_result,fill=unpaywall_oa_result)) + geom_bar() + 
+  theme_minimal() + ggtitle("OA Button results, by Unpaywall results")
+
+res %>% ggplot(aes(x=oabutton_oa_result,fill=unpaywall_oa_result)) + geom_bar(position = "fill") +
+  ylab("Proportion")+
+  theme_minimal() + ggtitle("OA Button results, showing proportion of Unpaywall results")
+```
+
