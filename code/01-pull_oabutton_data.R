@@ -44,7 +44,7 @@ tmp[tmp>1]
 
 url  <- "https://api.openaccessbutton.org"
 path <- "/"
-get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData")) # apikey
+get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData"),silent = TRUE) # apikey
 if(class(get_apikey)=="try-error") {get_apikey <- try(load(file="~/oabutton_apikey.RData"))} # apikey
 if(class(get_apikey)=="try-error") {apikey <- ""} # for others running
 
