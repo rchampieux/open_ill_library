@@ -1,7 +1,7 @@
 Pull OA Button Data
 ================
 Jessica Minnier
-2018-07-02
+2018-08-10
 
 Read Data
 =========
@@ -61,15 +61,19 @@ Info: <https://openaccessbutton.org/api>
 ``` r
 url  <- "https://api.openaccessbutton.org"
 path <- "/"
-apikey <- "7d8ba1ed9bd29e178475b9b8f2c211"
+get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData")) # apikey
+if(class(get_apikey)=="try-error") {apikey <- ""} # for others running
+```
 
-# get the result in JSON
+A blank query. Get the result in JSON
+
+``` r
 raw.result <- GET(url = url, path = path)
 raw.result
 ```
 
     #> Response [https://api.openaccessbutton.org/]
-    #>   Date: 2018-07-02 19:42
+    #>   Date: 2018-08-10 23:40
     #>   Status: 200
     #>   Content-Type: application/json; charset=utf-8
     #>   Size: 43 B
@@ -87,34 +91,44 @@ names(raw.result)
 path <- "availability"
 ```
 
-Need to make a function that creates a list out of a query and adds appropriate name
+Need to make a function that creates the appropriate URL
 
 ``` r
-makeQuery <- function(classifier) {
-  classifier = paste0(classifier,"?apikey=",apikey)
-  this.query <- list(classifier)
-  names(this.query) <- "url"
-  return(this.query)
+# Note: need to encode just classifier or else it doesn't work in api
+makeQuery <- function(classifier, name="url") {
+  classifier = paste0(url,"/",path,"?",name,"=",urltools::url_encode(classifier),"&apikey=",apikey)
+  return(classifier)
 }
+```
 
-# make a query out of a list of articles
+Make a query out of a list of articles; if DOI not available, use title.
+
+``` r
 alldata = alldata %>% 
-  mutate(query=ifelse(is.na(doi),article_title,doi)) %>% 
-  mutate(query=ifelse(is.na(query),photo_article_title,query))
-query_all  <- unique(na.omit(alldata$query))
+  mutate(query=ifelse(is.na(doi),article_title,doi),
+         queryname=ifelse(is.na(doi),"title","doi")) %>% 
+  mutate(query=ifelse(is.na(query),photo_article_title,query),
+         queryname=ifelse(is.na(query),"title",queryname))
+
+query_data  <- alldata%>%select(query,queryname) %>% filter(!is.na(query)) %>% unique %>% 
+  add_column(url=url,apikey=apikey,path=path) %>%
+  mutate(
+    query_nice = urltools::url_encode(query),
+    query_path = (glue::glue("{url}/{path}?{queryname}={query_nice}&apikey={apikey}")))
+
 nrow(alldata)
 ```
 
     #> [1] 1583
 
 ``` r
-length(query_all)
+nrow(query_data)
 ```
 
     #> [1] 1575
 
 ``` r
-queries <- lapply(as.list(query_all), makeQuery)
+queries <- query_data$query_path
 ```
 
 Some testing, one article first
@@ -123,8 +137,9 @@ Some testing, one article first
 # should be
 # https://api.openaccessbutton.org/availability?url=http%3A%2F%2Fjournals.plos.org%2Fplosone%2Farticle%3Fid%3Dinfo%253Adoi%2F10.1371%2Fjournal.pone.0163591
 # raw.result.test = GET(url = url, path = path, query = list(url=unlist(alldata$doi[1])))
-raw.result = GET(url = url, path = path, query = queries[[6]]) # a doi
-# raw.result = GET(url = url, path = path, query = queries[[191]]) # a title
+# raw.result = GET(makeQuery("10.1371/journal.pone.0163591")) # example
+# raw.result = GET(queries[[191]]) # a title
+raw.result = GET(queries[[28]]) # a doi with OA
 names(raw.result)
 ```
 
@@ -137,14 +152,20 @@ this.content <- fromJSON(this.raw.content)
 this.content$data$availability
 ```
 
-    #> list()
+| type    | url                                        |
+|:--------|:-------------------------------------------|
+| article | <http://europepmc.org/articles/PMC3348500> |
 
 ``` r
+rawcontent = this.content # for testing
 extract_availibility = function(rawcontent) {
   if(length(rawcontent$data$availability)>0){
     bind_cols(data_frame(match=rawcontent$data$match),
               as_data_frame(rawcontent$data$availability),
-              data_frame(source=rawcontent$data$meta$article$source))
+              data_frame(
+                source=rawcontent$data$meta$article$source,
+                title=ifelse(length(rawcontent$data$meta$article$title)>0,rawcontent$data$meta$article$title,NA) # not always available
+                ))
   }else{
     bind_cols(data_frame(match=rawcontent$data$match),url=NA)
   }
@@ -152,18 +173,40 @@ extract_availibility = function(rawcontent) {
 extract_availibility(this.content)
 ```
 
-| match                                                                             | url |
-|:----------------------------------------------------------------------------------|:----|
-| <https://doi.org/10.1001/archpsyc.60.3.303?apikey=7d8ba1ed9bd29e178475b9b8f2c211> | NA  |
+| match                                       | type    | url                                        | source | title |
+|:--------------------------------------------|:--------|:-------------------------------------------|:-------|:------|
+| <https://doi.org/10.1016/j.cub.2012.03.023> | article | <http://europepmc.org/articles/PMC3348500> | eupmc  | NA    |
+
+Testing the extraction function:
 
 ``` r
-raw = GET(url = url, path = path, query = queries[[6]])
+raw = GET(queries[[6]])
 extract_availibility(fromJSON(rawToChar(raw$content)))
 ```
 
-| match                                                                             | url |
-|:----------------------------------------------------------------------------------|:----|
-| <https://doi.org/10.1001/archpsyc.60.3.303?apikey=7d8ba1ed9bd29e178475b9b8f2c211> | NA  |
+| match                                       | url |
+|:--------------------------------------------|:----|
+| <https://doi.org/10.1001/archpsyc.60.3.303> | NA  |
+
+``` r
+raw = GET(makeQuery("10.1016/j.chemosphere.2016.06.071"))
+extract_availibility(fromJSON(rawToChar(raw$content)))
+```
+
+| match                                               | type    | url                                                                           | source | title |
+|:----------------------------------------------------|:--------|:------------------------------------------------------------------------------|:-------|:------|
+| <https://doi.org/10.1016/j.chemosphere.2016.06.071> | article | <https://manuscript.elsevier.com/S0045653516308293/pdf/S0045653516308293.pdf> | oadoi  | NA    |
+
+``` r
+raw = GET(makeQuery("Using aquatic vegetation to remediate nitrate, ammonium, and soluble reactive
+2 phosphorus in simulated runoff",name="title"))
+extract_availibility(fromJSON(rawToChar(raw$content)))
+```
+
+| match                                                                                                                 | type    | url | source | title |
+|:----------------------------------------------------------------------------------------------------------------------|:--------|:----|:-------|:------|
+| TITLE:Using aquatic vegetation to remediate nitrate, ammonium, and soluble reactive                                   |         |     |        |       |
+| 2 phosphorus in simulated runoff article <https://manuscript.elsevier.com/S0045653516308293/pdf/S0045653516308293.pd> | f oadoi | NA  |        |       |
 
 Now try all queries
 
@@ -180,7 +223,7 @@ if((class(tryload)=="try-error")||(update_raw_data)){
   t0 = Sys.time()
   for (i in 1:length(oabutton_raw)) {
     this.query       <- queries[[i]]
-    raw              <- GET(url = url, path = path, query = this.query)
+    raw              <- GET(this.query)
     oabutton_raw[[i]] <-  safe_fromJSON(rawToChar(raw$content))
     message(".", appendLF = FALSE)
     if(i%%50==0) print(i)
@@ -188,11 +231,11 @@ if((class(tryload)=="try-error")||(update_raw_data)){
   }
   Sys.time()-t0
   
-  names(oabutton_raw) = query_all
-  oabutton_raw0 = oabutton_raw
-  oabutton_error = oabutton_raw0%>%map(magrittr::extract2,"error")
-  oabutton_raw = oabutton_raw0%>%map(magrittr::extract2,"result")
-  names(oabutton_error) = names(oabutton_raw) = query_all
+  names(oabutton_raw) = query_data$query
+  oabutton_raw0 <- oabutton_raw
+  oabutton_error <- oabutton_raw0%>%map(magrittr::extract2,"error")
+  oabutton_raw <- oabutton_raw0%>%map(magrittr::extract2,"result")
+  names(oabutton_error) <- names(oabutton_raw) <- query_data$query
   rm(oabutton_raw0)
   
   save(oabutton_raw, oabutton_error, file=here("results",oabutton_datafile))
@@ -207,17 +250,17 @@ Note OA button finds a doi for this but it doesn't match the title nor the autho
 main_res[259,]
 ```
 
-| query                                                                                                                                                                                                                                                      | match                                              | url | type | source |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------|:----|:-----|:-------|
-| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | <https://doi.org/10.1097/00004850-199801001-00006> | NA  | NA   | NA     |
+| query                                                                                                                                                                                                                                                      | match                                              | url | type | source | title |
+|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------|:----|:-----|:-------|:------|
+| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | <https://doi.org/10.1097/00004850-199801001-00006> | NA  | NA   | NA     | NA    |
 
 ``` r
 alldata[match(main_res$query[259],alldata$photo_article_title),]
 ```
 
-| institution | type   | doi | photo\_article\_title                                                                                                                                                                                                                                      | photo\_journal\_title | photo\_journal\_volume | photo\_journal\_issue | photo\_journal\_year | photo\_journal\_inclusive\_pages | photo\_article\_author | transaction\_status |  transaction\_date| issn      |  base\_fee| lending\_library | reason\_for\_cancellation | call\_number | location        | maxcost | document\_type | system\_id | ifm\_cost | copyright\_payment\_method | ccc\_number | copyright\_comp | article\_title | journal\_title | volume | issue | year | pages | article\_author | x\_1 | cited\_in |  creation\_date| photo\_item\_publisher | notes\_on\_access | notes | doi\_input |  doi\_present| query                                                                                                                                                                                                                                                      |
-|:------------|:-------|:----|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------|:-----------------------|:----------------------|:---------------------|:---------------------------------|:-----------------------|:--------------------|------------------:|:----------|----------:|:-----------------|:--------------------------|:-------------|:----------------|:--------|:---------------|:-----------|:----------|:---------------------------|:------------|:----------------|:---------------|:---------------|:-------|:------|:-----|:------|:----------------|:-----|:----------|---------------:|:-----------------------|:------------------|:------|:-----------|-------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| pacific     | borrow | NA  | Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | Psychiatria Danubina. | 22 Suppl 1             | 1                     | 2010                 | S72-                             | Agius, Mark            | Request Finished    |           42704.42| 0353-5053 |         NA| OA               | NA                        | NA           | JOURNAL WEBSITE | NA      | Article        | OTH        | NA        | NA                         | NA          | US:CCL          | NA             | NA             | NA     | NA    | NA   | NA    | NA              | NA   | NA        |              NA| NA                     | NA                | NA    | NA         |             0| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early |
+| institution | type   | doi | photo\_article\_title                                                                                                                                                                                                                                      | photo\_journal\_title | photo\_journal\_volume | photo\_journal\_issue | photo\_journal\_year | photo\_journal\_inclusive\_pages | photo\_article\_author | transaction\_status |  transaction\_date| issn      |  base\_fee| lending\_library | reason\_for\_cancellation | call\_number | location        | maxcost | document\_type | system\_id | ifm\_cost | copyright\_payment\_method | ccc\_number | copyright\_comp | article\_title | journal\_title | volume | issue | year | pages | article\_author | x\_1 | cited\_in |  creation\_date| photo\_item\_publisher | notes\_on\_access | notes | doi\_input |  doi\_present| query                                                                                                                                                                                                                                                      | queryname |
+|:------------|:-------|:----|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------|:-----------------------|:----------------------|:---------------------|:---------------------------------|:-----------------------|:--------------------|------------------:|:----------|----------:|:-----------------|:--------------------------|:-------------|:----------------|:--------|:---------------|:-----------|:----------|:---------------------------|:------------|:----------------|:---------------|:---------------|:-------|:------|:-----|:------|:----------------|:-----|:----------|---------------:|:-----------------------|:------------------|:------|:-----------|-------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|
+| pacific     | borrow | NA  | Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | Psychiatria Danubina. | 22 Suppl 1             | 1                     | 2010                 | S72-                             | Agius, Mark            | Request Finished    |           42704.42| 0353-5053 |         NA| OA               | NA                        | NA           | JOURNAL WEBSITE | NA      | Article        | OTH        | NA        | NA                         | NA          | US:CCL          | NA             | NA             | NA     | NA    | NA   | NA    | NA              | NA   | NA        |              NA| NA                     | NA                | NA    | NA         |             0| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | title     |
 
 ``` r
 main_res     <- main_res%>%mutate(
@@ -235,8 +278,8 @@ main_res%>%tabyl(oabutton_oa_result)
 
 | oabutton\_oa\_result |     n|    percent|
 |:---------------------|-----:|----------:|
-| oa\_found            |    35|  0.0222222|
-| oa\_not\_found       |  1540|  0.9777778|
+| oa\_found            |   370|  0.2349206|
+| oa\_not\_found       |  1205|  0.7650794|
 
 Merge with original data, some had missing or duplicate dois
 
@@ -244,13 +287,19 @@ Merge with original data, some had missing or duplicate dois
 res <- left_join(alldata,main_res%>%rename(oabutton_match=match,
                                            oabutton_url=url,
                                            oabutton_type=type,
+                                           oabutton_title=title,
                                            oabutton_source=source),by="query")
+# res <- res %>% mutate(
+#   oabutton_oa_result = ifelse(is.na(oabutton_oa_result),"no_doi_or_title_input",oabutton_oa_result)
+#   )
 ```
 
 Write to a file:
 ----------------
 
 ``` r
+res <- res %>% rename(oabutton_query=query,oabutton_queryname=queryname)
+
 write_csv(res,
           path=here::here("results",oabutton_results_file))
 ```
@@ -264,8 +313,8 @@ res%>%tabyl(oabutton_oa_result)
 
 | oabutton\_oa\_result |     n|    percent|
 |:---------------------|-----:|----------:|
-| oa\_found            |    35|  0.0221099|
-| oa\_not\_found       |  1548|  0.9778901|
+| oa\_found            |   372|  0.2349968|
+| oa\_not\_found       |  1211|  0.7650032|
 
 ``` r
 res%>%tabyl(oabutton_oa_result,institution)%>%adorn_title()
@@ -274,8 +323,8 @@ res%>%tabyl(oabutton_oa_result,institution)%>%adorn_title()
 |                      | institution |     |     |
 |----------------------|:------------|-----|-----|
 | oabutton\_oa\_result | pacific     | PSU | UP  |
-| oa\_found            | 10          | 9   | 16  |
-| oa\_not\_found       | 532         | 524 | 492 |
+| oa\_found            | 145         | 95  | 132 |
+| oa\_not\_found       | 397         | 438 | 376 |
 
 ``` r
 res%>%tabyl(oabutton_oa_result,type)%>%adorn_title()
@@ -284,26 +333,31 @@ res%>%tabyl(oabutton_oa_result,type)%>%adorn_title()
 |                      | type   |         |
 |----------------------|:-------|---------|
 | oabutton\_oa\_result | borrow | lending |
-| oa\_found            | 18     | 17      |
-| oa\_not\_found       | 792    | 756     |
+| oa\_found            | 189    | 183     |
+| oa\_not\_found       | 621    | 590     |
 
 ``` r
 res %>% ggplot(aes(x=institution,fill=oabutton_oa_result)) + geom_bar(position = "dodge") + 
   theme_minimal()
 ```
 
-<img src="01-pull_oabutton_data_files/figure-markdown_github/unnamed-chunk-13-1.png" width="100%" style="display: block; margin: auto;" />
+<img src="01-pull_oabutton_data_files/figure-markdown_github/unnamed-chunk-16-1.png" width="100%" style="display: block; margin: auto;" />
 
 OA results: source
 ------------------
 
 ``` r
-res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%adorn_pct_formatting()
+res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%
+  adorn_totals()%>%
+  adorn_pct_formatting()
 ```
 
 | oabutton\_source |    n| percent |
 |:-----------------|----:|:--------|
-| base             |   25| 71.4%   |
-| doaj             |    3| 8.6%    |
-| eupmc            |    2| 5.7%    |
-| oadoi            |    5| 14.3%   |
+| base             |  141| 37.9%   |
+| BASE             |    2| 0.5%    |
+| core             |    6| 1.6%    |
+| doaj             |    3| 0.8%    |
+| eupmc            |   75| 20.2%   |
+| oadoi            |  145| 39.0%   |
+| Total            |  372| 100.0%  |
