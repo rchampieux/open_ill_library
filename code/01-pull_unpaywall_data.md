@@ -1,7 +1,7 @@
 Pull Unpaywall Data
 ================
 Jessica Minnier
-2018-08-10
+2018-08-17
 
 Read Data
 =========
@@ -18,10 +18,11 @@ alldata%>%tabyl(institution)%>%adorn_pct_formatting()%>%adorn_totals()
 
 | institution |     n| percent |
 |:------------|-----:|:--------|
-| pacific     |   542| 34.2%   |
-| PSU         |   533| 33.7%   |
-| UP          |   508| 32.1%   |
-| Total       |  1583| -       |
+| OHSU        |   256| 13.9%   |
+| pacific     |   542| 29.5%   |
+| PSU         |   533| 29.0%   |
+| UP          |   508| 27.6%   |
+| Total       |  1839| -       |
 
 ``` r
 alldata%>%tabyl(institution,type)%>%adorn_totals()
@@ -29,10 +30,11 @@ alldata%>%tabyl(institution,type)%>%adorn_totals()
 
 | institution |  borrow|  lending|
 |:------------|-------:|--------:|
+| OHSU        |     256|        0|
 | pacific     |     262|      280|
 | PSU         |     278|      255|
 | UP          |     270|      238|
-| Total       |     810|      773|
+| Total       |    1066|      773|
 
 Number of unique DOIs:
 
@@ -40,7 +42,7 @@ Number of unique DOIs:
 length(unique(alldata$doi))
 ```
 
-    #> [1] 1232
+    #> [1] 1387
 
 A few DOIs show up twice:
 
@@ -49,9 +51,9 @@ tmp = sort(table(alldata$doi),decreasing = TRUE)
 tmp[tmp>1]
 ```
 
-|  10.1016/0045-7930(86)90013-7|  10.1016/0091-3057(84)90199-0|  10.1016/S0304-3878(02)00131-1|  10.1080/00141844.2015.1028564|  10.1080/02687030902732745|  10.1097/HRP.0000000000000100|  10.1177/1747954116655049|  10.3109/01612840.2015.1055020|
-|-----------------------------:|-----------------------------:|------------------------------:|------------------------------:|--------------------------:|-----------------------------:|-------------------------:|------------------------------:|
-|                             2|                             2|                              2|                              2|                          2|                             2|                         2|                              2|
+|  10.1016/0045-7930(86)90013-7|  10.1016/0091-3057(84)90199-0|  10.1016/S0304-3878(02)00131-1|  10.1055/s-2007-1011046|  10.1080/00141844.2015.1028564|  10.1080/02687030902732745|  10.1097/HRP.0000000000000100|  10.1177/1747954116655049|  10.3109/01612840.2015.1055020|
+|-----------------------------:|-----------------------------:|------------------------------:|-----------------------:|------------------------------:|--------------------------:|-----------------------------:|-------------------------:|------------------------------:|
+|                             2|                             2|                              2|                       2|                              2|                          2|                             2|                         2|                              2|
 
 Unpaywall API
 =============
@@ -72,7 +74,7 @@ raw_result
 ```
 
     #> Response [https://api.unpaywall.org/v2/]
-    #>   Date: 2018-08-11 00:00
+    #>   Date: 2018-08-17 22:44
     #>   Status: 200
     #>   Content-Type: application/json
     #>   Size: 103 B
@@ -213,7 +215,7 @@ unpaywall_raw <- vector(mode   = "list",
 length(unpaywall_raw)
 ```
 
-    #> [1] 1231
+    #> [1] 1386
 
 make sure 1 request per second
 
@@ -263,9 +265,9 @@ main_res%>%tabyl(oa_result)
 
 | oa\_result        |     n|    percent|
 |:------------------|-----:|----------:|
-| doi\_input\_error |    20|  0.0162470|
-| oa\_found         |   209|  0.1697807|
-| oa\_not\_found    |  1002|  0.8139724|
+| doi\_input\_error |    25|  0.0180375|
+| oa\_found         |   232|  0.1673882|
+| oa\_not\_found    |  1129|  0.8145743|
 
 Combine results with original data
 ----------------------------------
@@ -296,46 +298,82 @@ Unpaywall OA results:
 =====================
 
 ``` r
-res%>%tabyl(unpaywall_oa_result)
+res%>%tabyl(unpaywall_oa_result)%>%adorn_pct_formatting()
 ```
 
-| unpaywall\_oa\_result |     n|    percent|
-|:----------------------|-----:|----------:|
-| doi\_input\_error     |    20|  0.0126342|
-| no\_doi\_input        |   344|  0.2173089|
-| oa\_found             |   210|  0.1326595|
-| oa\_not\_found        |  1009|  0.6373973|
+| unpaywall\_oa\_result |     n| percent |
+|:----------------------|-----:|:--------|
+| doi\_input\_error     |    25| 1.4%    |
+| no\_doi\_input        |   444| 24.1%   |
+| oa\_found             |   233| 12.7%   |
+| oa\_not\_found        |  1137| 61.8%   |
 
 ``` r
-res%>%tabyl(unpaywall_oa_result,institution)%>%adorn_title()
+res%>%tabyl(unpaywall_oa_result,institution)%>%
+  adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
 ```
 
-|                       | institution |     |     |
-|-----------------------|:------------|-----|-----|
-| unpaywall\_oa\_result | pacific     | PSU | UP  |
-| doi\_input\_error     | 14          | 4   | 2   |
-| no\_doi\_input        | 99          | 134 | 111 |
-| oa\_found             | 72          | 55  | 83  |
-| oa\_not\_found        | 357         | 340 | 312 |
+| unpaywall\_oa\_result/institution | OHSU        | pacific     | PSU         | UP          |
+|:----------------------------------|:------------|:------------|:------------|:------------|
+| doi\_input\_error                 | 2.7% (7)    | 2.6% (14)   | 0.4% (2)    | 0.4% (2)    |
+| no\_doi\_input                    | 39.1% (100) | 18.3% (99)  | 25.1% (134) | 21.9% (111) |
+| oa\_found                         | 7.4% (19)   | 13.3% (72)  | 10.9% (58)  | 16.5% (84)  |
+| oa\_not\_found                    | 50.8% (130) | 65.9% (357) | 63.6% (339) | 61.2% (311) |
 
 ``` r
-res%>%tabyl(unpaywall_oa_result,type)%>%adorn_title()
+res%>%tabyl(unpaywall_oa_result,type)%>%
+  adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
 ```
 
-|                       | type   |         |
-|-----------------------|:-------|---------|
-| unpaywall\_oa\_result | borrow | lending |
-| doi\_input\_error     | 9      | 11      |
-| no\_doi\_input        | 222    | 122     |
-| oa\_found             | 114    | 96      |
-| oa\_not\_found        | 465    | 544     |
+| unpaywall\_oa\_result/type | borrow      | lending     |
+|:---------------------------|:------------|:------------|
+| doi\_input\_error          | 1.4% (15)   | 1.3% (10)   |
+| no\_doi\_input             | 30.2% (322) | 15.8% (122) |
+| oa\_found                  | 12.9% (138) | 12.3% (95)  |
+| oa\_not\_found             | 55.4% (591) | 70.6% (546) |
+
+What percentage of queries with DOI were found?
+===============================================
+
+``` r
+res%>%filter(doi_present==1)%>%
+  tabyl(unpaywall_oa_result)%>%
+  adorn_pct_formatting()
+```
+
+| unpaywall\_oa\_result |     n| percent |
+|:----------------------|-----:|:--------|
+| doi\_input\_error     |    25| 1.8%    |
+| oa\_found             |   233| 16.7%   |
+| oa\_not\_found        |  1137| 81.5%   |
+
+``` r
+res%>%filter(doi_present==1)%>%
+  tabyl(unpaywall_oa_result,institution)%>%
+  adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
+```
+
+| unpaywall\_oa\_result/institution | OHSU        | pacific     | PSU         | UP          |
+|:----------------------------------|:------------|:------------|:------------|:------------|
+| doi\_input\_error                 | 4.5% (7)    | 3.2% (14)   | 0.5% (2)    | 0.5% (2)    |
+| oa\_found                         | 12.2% (19)  | 16.3% (72)  | 14.5% (58)  | 21.2% (84)  |
+| oa\_not\_found                    | 83.3% (130) | 80.6% (357) | 85.0% (339) | 78.3% (311) |
 
 ``` r
 res %>% ggplot(aes(x=institution,fill=unpaywall_oa_result)) + geom_bar(position = "dodge") + 
   theme_minimal()
 ```
 
-<img src="01-pull_unpaywall_data_files/figure-markdown_github/unnamed-chunk-16-1.png" width="100%" style="display: block; margin: auto;" />
+<img src="01-pull_unpaywall_data_files/figure-markdown_github/unnamed-chunk-17-1.png" width="100%" style="display: block; margin: auto;" />
 
 OA results: evidence
 --------------------
@@ -346,17 +384,17 @@ res%>%filter(unpaywall_is_oa==1)%>%tabyl(unpaywall_evidence)%>%adorn_pct_formatt
 
 | unpaywall\_evidence                                      |    n| percent |
 |:---------------------------------------------------------|----:|:--------|
-| oa journal (via doaj)                                    |    3| 1.4%    |
-| oa repository (via OAI-PMH doi match)                    |   48| 22.9%   |
-| oa repository (via OAI-PMH title and first author match) |   53| 25.2%   |
-| oa repository (via OAI-PMH title and last author match)  |    1| 0.5%    |
-| oa repository (via OAI-PMH title match)                  |    1| 0.5%    |
-| oa repository (via pmcid lookup)                         |    1| 0.5%    |
-| open (via crossref license, author manuscript)           |    2| 1.0%    |
-| open (via crossref license)                              |    5| 2.4%    |
-| open (via free pdf)                                      |   79| 37.6%   |
-| open (via page says license)                             |   14| 6.7%    |
-| open (via page says Open Access)                         |    3| 1.4%    |
+| oa journal (via doaj)                                    |    3| 1.3%    |
+| oa repository (via OAI-PMH doi match)                    |   53| 22.7%   |
+| oa repository (via OAI-PMH title and first author match) |   56| 24.0%   |
+| oa repository (via OAI-PMH title and last author match)  |    1| 0.4%    |
+| oa repository (via OAI-PMH title match)                  |    2| 0.9%    |
+| oa repository (via pmcid lookup)                         |    2| 0.9%    |
+| open (via crossref license)                              |    4| 1.7%    |
+| open (via crossref license, author manuscript)           |    2| 0.9%    |
+| open (via free pdf)                                      |   87| 37.3%   |
+| open (via page says license)                             |   19| 8.2%    |
+| open (via page says Open Access)                         |    4| 1.7%    |
 
 Which dois result in an error?
 ------------------------------
@@ -381,9 +419,14 @@ res%>%filter(unpaywall_error)%>%select(institution,type,query,unpaywall_error,un
 |   pacific   | lending |          10.3290/j.ohpd.a32679          |       TRUE       |                   '10.3290/j.ohpd.a32679' is an invalid doi. See <http://doi.org/10.3290/j.ohpd.a32679>                   |
 |   pacific   | lending |           10.3290/j.qi.a31533           |       TRUE       |                     '10.3290/j.qi.a31533' is an invalid doi. See <http://doi.org/10.3290/j.qi.a31533>                     |
 |   pacific   | lending |              10.3899/jrheum             |       TRUE       |                          '10.3899/jrheum' is an invalid doi. See <http://doi.org/10.3899/jrheum>                          |
-|     PSU     |  borrow |         10.15517/rfl.v16i2.19484        |       TRUE       |                '10.15517/rfl.v16i2.19484' is an invalid doi. See <http://doi.org/10.15517/rfl.v16i2.19484>                |
 |     PSU     | lending |      10.3726/978-3-0353-0378-0\_13      |       TRUE       |            '10.3726/978-3-0353-0378-0\_13' is an invalid doi. See <http://doi.org/10.3726/978-3-0353-0378-0_13>           |
 |     PSU     | lending |         10.4018/ijepr.201504010         |       TRUE       |                 '10.4018/ijepr.201504010' is an invalid doi. See <http://doi.org/10.4018/ijepr.201504010>                 |
-|     PSU     | lending |        10.1080/03007769508591590        |       TRUE       |               '10.1080/03007769508591590' is an invalid doi. See <http://doi.org/10.1080/03007769508591590>               |
 |      UP     |  borrow |      10.1080/00220973.1994.11072347     |       TRUE       |          '10.1080/00220973.1994.11072347' is an invalid doi. See <http://doi.org/10.1080/00220973.1994.11072347>          |
 |      UP     |  borrow |         10.2310/7070.2009.080165        |       TRUE       |                '10.2310/7070.2009.080165' is an invalid doi. See <http://doi.org/10.2310/7070.2009.080165>                |
+|     OHSU    |  borrow |           10.7417/CT.2014.1732          |       TRUE       |                    '10.7417/CT.2014.1732' is an invalid doi. See <http://doi.org/10.7417/CT.2014.1732>                    |
+|     OHSU    |  borrow |          10.1684/ejd.2014.2291          |       TRUE       |                   '10.1684/ejd.2014.2291' is an invalid doi. See <http://doi.org/10.1684/ejd.2014.2291>                   |
+|     OHSU    |  borrow |           10.1034/j.1600-0501.          |       TRUE       |                    '10.1034/j.1600-0501.' is an invalid doi. See <http://doi.org/10.1034/j.1600-0501>.                    |
+|     OHSU    |  borrow |          10.1684/ejd.2012.1854          |       TRUE       |                   '10.1684/ejd.2012.1854' is an invalid doi. See <http://doi.org/10.1684/ejd.2012.1854>                   |
+|     OHSU    |  borrow |            10.1159/000381997            |       TRUE       |                       '10.1159/000381997' is an invalid doi. See <http://doi.org/10.1159/000381997>                       |
+|     OHSU    |  borrow |          10.3233/BIR-2012-0597          |       TRUE       |                   '10.3233/BIR-2012-0597' is an invalid doi. See <http://doi.org/10.3233/BIR-2012-0597>                   |
+|     OHSU    |  borrow |           10.14283/jfa.2016.81          |       TRUE       |                    '10.14283/jfa.2016.81' is an invalid doi. See <http://doi.org/10.14283/jfa.2016.81>                    |
