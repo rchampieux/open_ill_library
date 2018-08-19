@@ -13,7 +13,8 @@ source(here("code","00-front_matter.R"))
 
 # UPDATE THIS TO CHANGE FILES
 #date_updated <- "2018-07-01"
-date_updated <- "2018-08-10"
+#date_updated <- "2018-08-10"
+date_updated <- "2018-08-17"
 oabutton_datafile <- paste0(date_updated,"-oabutton_raw.RData")
 oabutton_results_file <- paste0(date_updated,"-oabutton_results.csv")
 update_raw_data <- FALSE
@@ -43,7 +44,8 @@ tmp[tmp>1]
 
 url  <- "https://api.openaccessbutton.org"
 path <- "/"
-get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData")) # apikey
+get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData"),silent = TRUE) # apikey
+if(class(get_apikey)=="try-error") {get_apikey <- try(load(file="~/oabutton_apikey.RData"))} # apikey
 if(class(get_apikey)=="try-error") {apikey <- ""} # for others running
 
 #' A blank query. Get the result in JSON
@@ -192,8 +194,14 @@ write_csv(res,
 #' # OA Button OA results:
 #' 
 res%>%tabyl(oabutton_oa_result)
-res%>%tabyl(oabutton_oa_result,institution)%>%adorn_title()
-res%>%tabyl(oabutton_oa_result,type)%>%adorn_title()
+res%>%tabyl(oabutton_oa_result,institution)%>%adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
+res%>%tabyl(oabutton_oa_result,type)%>%adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
 
 res %>% ggplot(aes(x=institution,fill=oabutton_oa_result)) + geom_bar(position = "dodge") + 
   theme_minimal()

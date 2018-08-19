@@ -7,8 +7,9 @@ library(janitor)
 library(httr)
 library(jsonlite)
 library(printr)
+library(here)
 
-library(rcrossref)
+#library(rcrossref)
 
 
 

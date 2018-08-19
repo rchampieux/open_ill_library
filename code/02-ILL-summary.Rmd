@@ -90,8 +90,22 @@ res %>% tabyl(oabutton_oa_result, unpaywall_oa_result) %>%
   adorn_percentages(denominator = "all") %>%
   adorn_pct_formatting() %>% 
   adorn_ns() %>%
-  adorn_title() 
+  adorn_title("combined") 
 ```
+
+As a proportion of queries with a DOI:
+
+```{r}
+res %>% 
+  filter(doi_present==1) %>%
+  tabyl(oabutton_oa_result, unpaywall_oa_result) %>% 
+  adorn_totals(where = c("row","col")) %>%
+  adorn_percentages(denominator = "all") %>%
+  adorn_pct_formatting() %>% 
+  adorn_ns() %>%
+  adorn_title("combined") 
+```
+
 
 
 

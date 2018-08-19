@@ -36,8 +36,16 @@ tmplending <- read_excel(
 uofp = bind_rows("borrow"=tmpborrow,"lending"=tmplending,.id = "type")%>%
   add_column(institution="UP",.before = "type") 
 
+
+tmpborrow <- read_csv(
+  here("OHSU","OHSU_Borrowing.csv")
+)%>%janitor::clean_names()%>%add_column(type="borrow")
+
+ohsu = tmpborrow%>%add_column(institution="OHSU",.before = "type")
+
 alldata = bind_rows(pacific,psu)
 alldata = bind_rows(alldata,uofp)
+alldata = bind_rows(alldata,ohsu)
 alldata = alldata%>%mutate(
   doi=ifelse(substr(doi,1,1)=="0",paste0("1",doi),doi), # some dois start with 0, assuming need a 10 instead
   doi=gsub("\n","",doi), #\n at end of doi causes issues

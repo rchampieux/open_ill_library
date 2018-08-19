@@ -1,7 +1,7 @@
 Pull OA Button Data
 ================
 Jessica Minnier
-2018-08-10
+2018-08-17
 
 Read Data
 =========
@@ -18,10 +18,11 @@ alldata%>%tabyl(institution)%>%adorn_pct_formatting()%>%adorn_totals()
 
 | institution |     n| percent |
 |:------------|-----:|:--------|
-| pacific     |   542| 34.2%   |
-| PSU         |   533| 33.7%   |
-| UP          |   508| 32.1%   |
-| Total       |  1583| -       |
+| OHSU        |   256| 13.9%   |
+| pacific     |   542| 29.5%   |
+| PSU         |   533| 29.0%   |
+| UP          |   508| 27.6%   |
+| Total       |  1839| -       |
 
 ``` r
 alldata%>%tabyl(institution,type)%>%adorn_totals()
@@ -29,10 +30,11 @@ alldata%>%tabyl(institution,type)%>%adorn_totals()
 
 | institution |  borrow|  lending|
 |:------------|-------:|--------:|
+| OHSU        |     256|        0|
 | pacific     |     262|      280|
 | PSU         |     278|      255|
 | UP          |     270|      238|
-| Total       |     810|      773|
+| Total       |    1066|      773|
 
 Number of unique DOIs:
 
@@ -40,7 +42,7 @@ Number of unique DOIs:
 length(unique(alldata$doi))
 ```
 
-    #> [1] 1232
+    #> [1] 1387
 
 A few DOIs show up twice:
 
@@ -49,9 +51,9 @@ tmp = sort(table(alldata$doi),decreasing = TRUE)
 tmp[tmp>1]
 ```
 
-|  10.1016/0045-7930(86)90013-7|  10.1016/0091-3057(84)90199-0|  10.1016/S0304-3878(02)00131-1|  10.1080/00141844.2015.1028564|  10.1080/02687030902732745|  10.1097/HRP.0000000000000100|  10.1177/1747954116655049|  10.3109/01612840.2015.1055020|
-|-----------------------------:|-----------------------------:|------------------------------:|------------------------------:|--------------------------:|-----------------------------:|-------------------------:|------------------------------:|
-|                             2|                             2|                              2|                              2|                          2|                             2|                         2|                              2|
+|  10.1016/0045-7930(86)90013-7|  10.1016/0091-3057(84)90199-0|  10.1016/S0304-3878(02)00131-1|  10.1055/s-2007-1011046|  10.1080/00141844.2015.1028564|  10.1080/02687030902732745|  10.1097/HRP.0000000000000100|  10.1177/1747954116655049|  10.3109/01612840.2015.1055020|
+|-----------------------------:|-----------------------------:|------------------------------:|-----------------------:|------------------------------:|--------------------------:|-----------------------------:|-------------------------:|------------------------------:|
+|                             2|                             2|                              2|                       2|                              2|                          2|                             2|                         2|                              2|
 
 Open Access Button
 ==================
@@ -62,6 +64,7 @@ Info: <https://openaccessbutton.org/api>
 url  <- "https://api.openaccessbutton.org"
 path <- "/"
 get_apikey <- try(load(file="~/Dropbox/oabutton_apikey.RData")) # apikey
+if(class(get_apikey)=="try-error") {get_apikey <- try(load(file="~/oabutton_apikey.RData"))} # apikey
 if(class(get_apikey)=="try-error") {apikey <- ""} # for others running
 ```
 
@@ -73,7 +76,7 @@ raw.result
 ```
 
     #> Response [https://api.openaccessbutton.org/]
-    #>   Date: 2018-08-10 23:40
+    #>   Date: 2018-08-17 21:04
     #>   Status: 200
     #>   Content-Type: application/json; charset=utf-8
     #>   Size: 43 B
@@ -119,13 +122,13 @@ query_data  <- alldata%>%select(query,queryname) %>% filter(!is.na(query)) %>% u
 nrow(alldata)
 ```
 
-    #> [1] 1583
+    #> [1] 1839
 
 ``` r
 nrow(query_data)
 ```
 
-    #> [1] 1575
+    #> [1] 1830
 
 ``` r
 queries <- query_data$query_path
@@ -250,17 +253,17 @@ Note OA button finds a doi for this but it doesn't match the title nor the autho
 main_res[259,]
 ```
 
-| query                                                                                                                                                                                                                                                      | match                                              | url | type | source | title |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------|:----|:-----|:-------|:------|
-| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | <https://doi.org/10.1097/00004850-199801001-00006> | NA  | NA   | NA     | NA    |
+| query                                                                                                                                                                                                                                                      | match                                                                                                                                                                                                                                                            | url | type | source | title |
+|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----|:-----|:-------|:------|
+| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | TITLE:Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | NA  | NA   | NA     | NA    |
 
 ``` r
 alldata[match(main_res$query[259],alldata$photo_article_title),]
 ```
 
-| institution | type   | doi | photo\_article\_title                                                                                                                                                                                                                                      | photo\_journal\_title | photo\_journal\_volume | photo\_journal\_issue | photo\_journal\_year | photo\_journal\_inclusive\_pages | photo\_article\_author | transaction\_status |  transaction\_date| issn      |  base\_fee| lending\_library | reason\_for\_cancellation | call\_number | location        | maxcost | document\_type | system\_id | ifm\_cost | copyright\_payment\_method | ccc\_number | copyright\_comp | article\_title | journal\_title | volume | issue | year | pages | article\_author | x\_1 | cited\_in |  creation\_date| photo\_item\_publisher | notes\_on\_access | notes | doi\_input |  doi\_present| query                                                                                                                                                                                                                                                      | queryname |
-|:------------|:-------|:----|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------|:-----------------------|:----------------------|:---------------------|:---------------------------------|:-----------------------|:--------------------|------------------:|:----------|----------:|:-----------------|:--------------------------|:-------------|:----------------|:--------|:---------------|:-----------|:----------|:---------------------------|:------------|:----------------|:---------------|:---------------|:-------|:------|:-----|:------|:----------------|:-----|:----------|---------------:|:-----------------------|:------------------|:------|:-----------|-------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|
-| pacific     | borrow | NA  | Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | Psychiatria Danubina. | 22 Suppl 1             | 1                     | 2010                 | S72-                             | Agius, Mark            | Request Finished    |           42704.42| 0353-5053 |         NA| OA               | NA                        | NA           | JOURNAL WEBSITE | NA      | Article        | OTH        | NA        | NA                         | NA          | US:CCL          | NA             | NA             | NA     | NA    | NA   | NA    | NA              | NA   | NA        |              NA| NA                     | NA                | NA    | NA         |             0| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | title     |
+| institution | type   | doi | photo\_article\_title                                                                                                                                                                                                                                      | photo\_journal\_title | photo\_journal\_volume | photo\_journal\_issue | photo\_journal\_year | photo\_journal\_inclusive\_pages | photo\_article\_author | transaction\_status |  transaction\_date| issn      |  base\_fee| lending\_library | reason\_for\_cancellation | call\_number | location        | maxcost | document\_type | system\_id | ifm\_cost | copyright\_payment\_method | ccc\_number | copyright\_comp | article\_title | journal\_title | volume | issue | year | pages | article\_author | x\_1 | cited\_in |  creation\_date| photo\_item\_publisher | notes\_on\_access | notes |  randon\_number\_generator| journal\_volume | journal\_issue | journal\_year | journal\_inclusive\_pages | status | doi\_input |  doi\_present| query                                                                                                                                                                                                                                                      | queryname |
+|:------------|:-------|:----|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------|:-----------------------|:----------------------|:---------------------|:---------------------------------|:-----------------------|:--------------------|------------------:|:----------|----------:|:-----------------|:--------------------------|:-------------|:----------------|:--------|:---------------|:-----------|:----------|:---------------------------|:------------|:----------------|:---------------|:---------------|:-------|:------|:-----|:------|:----------------|:-----|:----------|---------------:|:-----------------------|:------------------|:------|--------------------------:|:----------------|:---------------|:--------------|:--------------------------|:-------|:-----------|-------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|
+| pacific     | borrow | NA  | Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | Psychiatria Danubina. | 22 Suppl 1             | 1                     | 2010                 | S72-                             | Agius, Mark            | Request Finished    |           42704.42| 0353-5053 |         NA| OA               | NA                        | NA           | JOURNAL WEBSITE | NA      | Article        | OTH        | NA        | NA                         | NA          | US:CCL          | NA             | NA             | NA     | NA    | NA   | NA    | NA              | NA   | NA        |              NA| NA                     | NA                | NA    |                         NA| NA              | NA             | NA            | NA                        | NA     | NA         |             0| Does early intervention for psychosis work? An analysis of outcomes of early intervention in psychosis based on the critical period hypothesis, measured by number of admissions and bed days used over a period of six years, the first three in an early | title     |
 
 ``` r
 main_res     <- main_res%>%mutate(
@@ -276,10 +279,10 @@ Unique queries: OA found
 main_res%>%tabyl(oabutton_oa_result)
 ```
 
-| oabutton\_oa\_result |     n|    percent|
-|:---------------------|-----:|----------:|
-| oa\_found            |   370|  0.2349206|
-| oa\_not\_found       |  1205|  0.7650794|
+| oabutton\_oa\_result |     n|   percent|
+|:---------------------|-----:|---------:|
+| oa\_found            |   395|  0.215847|
+| oa\_not\_found       |  1435|  0.784153|
 
 Merge with original data, some had missing or duplicate dois
 
@@ -313,28 +316,32 @@ res%>%tabyl(oabutton_oa_result)
 
 | oabutton\_oa\_result |     n|    percent|
 |:---------------------|-----:|----------:|
-| oa\_found            |   372|  0.2349968|
-| oa\_not\_found       |  1211|  0.7650032|
+| oa\_found            |   397|  0.2158782|
+| oa\_not\_found       |  1442|  0.7841218|
 
 ``` r
-res%>%tabyl(oabutton_oa_result,institution)%>%adorn_title()
+res%>%tabyl(oabutton_oa_result,institution)%>%adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
 ```
 
-|                      | institution |     |     |
-|----------------------|:------------|-----|-----|
-| oabutton\_oa\_result | pacific     | PSU | UP  |
-| oa\_found            | 145         | 95  | 132 |
-| oa\_not\_found       | 397         | 438 | 376 |
+| oabutton\_oa\_result/institution | OHSU        | pacific     | PSU         | UP          |
+|:---------------------------------|:------------|:------------|:------------|:------------|
+| oa\_found                        | 21.9% (56)  | 23.6% (128) | 16.5% (88)  | 24.6% (125) |
+| oa\_not\_found                   | 78.1% (200) | 76.4% (414) | 83.5% (445) | 75.4% (383) |
 
 ``` r
-res%>%tabyl(oabutton_oa_result,type)%>%adorn_title()
+res%>%tabyl(oabutton_oa_result,type)%>%adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
 ```
 
-|                      | type   |         |
-|----------------------|:-------|---------|
-| oabutton\_oa\_result | borrow | lending |
-| oa\_found            | 189    | 183     |
-| oa\_not\_found       | 621    | 590     |
+| oabutton\_oa\_result/type | borrow      | lending     |
+|:--------------------------|:------------|:------------|
+| oa\_found                 | 21.6% (230) | 21.6% (167) |
+| oa\_not\_found            | 78.4% (836) | 78.4% (606) |
 
 ``` r
 res %>% ggplot(aes(x=institution,fill=oabutton_oa_result)) + geom_bar(position = "dodge") + 
@@ -354,10 +361,10 @@ res%>%filter(oabutton_oa_result=="oa_found")%>%tabyl(oabutton_source)%>%
 
 | oabutton\_source |    n| percent |
 |:-----------------|----:|:--------|
-| base             |  141| 37.9%   |
-| BASE             |    2| 0.5%    |
-| core             |    6| 1.6%    |
+| base             |  166| 41.8%   |
+| BASE             |    3| 0.8%    |
+| core             |    6| 1.5%    |
 | doaj             |    3| 0.8%    |
-| eupmc            |   75| 20.2%   |
-| oadoi            |  145| 39.0%   |
-| Total            |  372| 100.0%  |
+| eupmc            |   85| 21.4%   |
+| oadoi            |  134| 33.8%   |
+| Total            |  397| 100.0%  |

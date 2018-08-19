@@ -10,7 +10,7 @@ library(here)
 source(here("code","00-front_matter.R"))
 
 # UPDATE THIS TO CHANGE FILES
-date_updated <- "2018-06-18"
+date_updated <- "2018-08-17"
 unpaywall_datafile <- paste0(date_updated,"-unpaywall_raw.RData")
 unpaywall_results_file <- paste0(date_updated,"-unpaywall_results.csv")
 update_raw_data <- FALSE
@@ -192,9 +192,29 @@ write_csv(res,
 
 #' # Unpaywall OA results:
 #' 
-res%>%tabyl(unpaywall_oa_result)
-res%>%tabyl(unpaywall_oa_result,institution)%>%adorn_title()
-res%>%tabyl(unpaywall_oa_result,type)%>%adorn_title()
+res%>%tabyl(unpaywall_oa_result)%>%adorn_pct_formatting()
+res%>%tabyl(unpaywall_oa_result,institution)%>%
+  adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
+res%>%tabyl(unpaywall_oa_result,type)%>%
+  adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
+
+#' # What percentage of queries with DOI were found?
+res%>%filter(doi_present==1)%>%
+  tabyl(unpaywall_oa_result)%>%
+  adorn_pct_formatting()
+
+res%>%filter(doi_present==1)%>%
+  tabyl(unpaywall_oa_result,institution)%>%
+  adorn_title("combined")%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns()
 
 res %>% ggplot(aes(x=institution,fill=unpaywall_oa_result)) + geom_bar(position = "dodge") + 
   theme_minimal()
