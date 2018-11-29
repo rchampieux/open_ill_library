@@ -2,7 +2,7 @@
 
 This repository includes the raw and analyzed data for our research into the potential impact of the OA Button and Unpaywall on ILL lending and borrowing activities across four academic libraries:  Oregon Health and Science University, Portland State University, University of Portland, and Pacific University.
 
-The raw ILL transactional data for each institution is contained in the **raw_transactional_data** folder.
+The raw ILL transactional data for each institution is contained in the **[raw_transactional_data](https://github.com/rchampieux/open_ill_library/tree/master/raw_transaction_data)** folder.
 
 The **results** folder includes the found document results against each tool's API.
 
